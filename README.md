@@ -1,17 +1,28 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Tech Stack
+
+- Next.js 16.1.4 (App Router)
+- React 19.2.3
+- Tailwind CSS ^4 with `@tailwindcss/postcss` ^4
+- shadcn/ui (configured via `components.json`)
+- TypeScript ^5
+- pnpm (package manager)
+- Node.js >= 24
+
 ## Getting Started
+
+This project targets Node.js 24 and uses pnpm.
+
+```bash
+nvm use
+pnpm install
+```
 
 First, run the development server:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
 pnpm dev
-# or
-bun dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.

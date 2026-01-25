@@ -21,7 +21,6 @@ import {
   Sun,
   Moon,
   PanelLeft,
-  ChevronDown,
 } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { toast } from "sonner";
@@ -29,10 +28,8 @@ import { useDebounce } from "@/hooks/use-debounce";
 import {
   usePreferences,
   WHO_I_AM_OPTIONS,
-  TONE_OPTIONS,
+  TONE_OPTIONS as TONE_OPTIONS_PREF,
   AUDIENCE_BY_CHANNEL,
-  DEFAULT_AUDIENCE,
-  CHANNEL_OPTIONS,
   COUNTRY_OPTIONS,
   JOB_CATEGORY_OPTIONS,
   COMPANY_SIZE_OPTIONS,
@@ -43,9 +40,16 @@ import {
   generatePrompt,
   canGenerate,
   MIN_CHARS,
-  MAX_CHARS,
   type Platform,
 } from "@/lib/generate-prompt";
+import { IntentSentenceBar } from "@/components/IntentSentenceBar";
+import {
+  type Intent,
+  DEFAULT_INTENT,
+  getPersonaLabel,
+  CHANNEL_OPTIONS,
+  TONE_OPTIONS,
+} from "@/lib/intent";
 
 function HomeContent() {
   const { setTheme, resolvedTheme } = useTheme();
@@ -64,24 +68,18 @@ function HomeContent() {
     useHistory();
 
   const [message, setMessage] = useState("");
-  const [channel, setChannel] = useState<Platform>("slack");
-  const [audience, setAudience] = useState(DEFAULT_AUDIENCE["slack"]);
-  const [tone, setTone] = useState<string | null>(null);
+  const [intent, setIntent] = useState<Intent>(DEFAULT_INTENT);
   const [copied, setCopied] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showGeneratedPrompt, setShowGeneratedPrompt] = useState(false);
+  const [isTextareaFocused, setIsTextareaFocused] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
-
-  // Update audience when channel changes
-  useEffect(() => {
-    setAudience(DEFAULT_AUDIENCE[channel]);
-  }, [channel]);
 
   // Auto-grow textarea based on content
   useEffect(() => {
@@ -92,9 +90,6 @@ function HomeContent() {
     }
   }, [message]);
 
-  const effectiveTone = tone ?? preferences.defaultTone;
-  const audienceOptions = AUDIENCE_BY_CHANNEL[channel] || [];
-
   const debouncedMessage = useDebounce(message, 300);
 
   const generatedPrompt = useMemo(() => {
@@ -102,14 +97,12 @@ function HomeContent() {
 
     return generatePrompt({
       message: debouncedMessage.trim(),
-      channel,
-      audience,
-      tone: effectiveTone,
-      whoIAm:
-        WHO_I_AM_OPTIONS.find((o) => o.value === preferences.whoIAm)?.label ??
-        preferences.whoIAm,
+      channel: intent.channel as Platform,
+      audience: intent.audience ?? "team",
+      tone: intent.tone,
+      whoIAm: getPersonaLabel(intent.persona),
     });
-  }, [debouncedMessage, channel, audience, effectiveTone, preferences.whoIAm]);
+  }, [debouncedMessage, intent]);
 
   const buildPreview = (input: string) => {
     const trimmed = input.trim();
@@ -118,22 +111,26 @@ function HomeContent() {
     return `${trimmed.slice(0, maxLength)}...`;
   };
 
-  const getChannelLabel = (value: string) =>
+  const getChannelLabelForHistory = (value: string) =>
     CHANNEL_OPTIONS.find((option) => option.value === value)?.label ?? value;
 
-  const getAudienceLabel = (channelValue: string, value: string) =>
+  const getAudienceLabelForHistory = (channelValue: string, value: string) =>
     AUDIENCE_BY_CHANNEL[channelValue]?.find((option) => option.value === value)
       ?.label ?? value;
 
-  const getToneLabel = (value: string) =>
+  const getToneLabelForHistory = (value: string) =>
     TONE_OPTIONS.find((option) => option.value === value)?.label ?? value;
 
   const handleReuse = (item: HistoryItem) => {
     const input = item.input || item.inputPreview;
     setMessage(input);
-    setChannel(item.channel as Platform);
-    setAudience(item.audience);
-    setTone(item.tone);
+    // Map history item back to intent (using defaults for persona)
+    setIntent({
+      channel: item.channel as Intent["channel"],
+      audience: item.audience as Intent["audience"],
+      tone: item.tone as Intent["tone"],
+      persona: intent.persona, // Keep current persona
+    });
   };
 
   const handleDuplicate = (item: HistoryItem) => {
@@ -159,9 +156,9 @@ function HomeContent() {
 
       const trimmedMessage = message.trim();
       addToHistory({
-        channel,
-        audience,
-        tone: effectiveTone,
+        channel: intent.channel,
+        audience: intent.audience ?? "team",
+        tone: intent.tone,
         input: trimmedMessage,
         inputPreview: buildPreview(trimmedMessage),
         prompt: generatedPrompt,
@@ -176,6 +173,11 @@ function HomeContent() {
   const showPreview = canGenerate(message) && generatedPrompt;
   const showSidebar = history.length > 0;
 
+  // Get a short preview of the generated prompt (first ~60 chars)
+  const promptPreview = generatedPrompt
+    ? generatedPrompt.slice(0, 60).trim() + (generatedPrompt.length > 60 ? "…" : "")
+    : "";
+
   const previewPanel = showPreview ? (
     <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
       {/* Primary action - always visible */}
@@ -188,42 +190,60 @@ function HomeContent() {
         ) : (
           <>
             <Copy className="h-4 w-4 mr-2" />
-            Copy Prompt
+            Copy meta prompt
           </>
         )}
       </Button>
 
-      {/* Collapsible generated prompt - secondary, for advanced users */}
-      <div className="space-y-2">
-        <button
-          onClick={() => setShowGeneratedPrompt(!showGeneratedPrompt)}
-          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors w-full justify-center"
-        >
-          <ChevronDown
-            className={cn(
-              "h-3 w-3 transition-transform duration-200",
-              showGeneratedPrompt && "rotate-180"
-            )}
-          />
-          <span>
-            {showGeneratedPrompt ? "Hide" : "View"} generated prompt
-          </span>
-        </button>
+      {/* Helper text + status */}
+      <div className="text-center space-y-0.5">
+        <p className="text-xs text-muted-foreground/70">
+          Paste this into ChatGPT, Claude, or any AI assistant
+        </p>
+        <p className="text-xs text-muted-foreground/50">
+          {message.trim() !== debouncedMessage.trim() ? "Updating…" : "Ready"}
+        </p>
+      </div>
 
-        {showGeneratedPrompt && (
-          <div className="animate-in fade-in slide-in-from-top-2 duration-200">
-            <pre className="text-xs bg-muted/30 rounded-2xl p-4 overflow-x-auto whitespace-pre-wrap font-mono text-muted-foreground max-h-[180px] overflow-y-auto border">
+      {/* Collapsible meta prompt panel - header stub always visible */}
+      <div className="rounded-2xl border bg-card overflow-hidden">
+        {showGeneratedPrompt ? (
+          <>
+            <button
+              onClick={() => setShowGeneratedPrompt(false)}
+              className="w-full flex items-center justify-between px-4 py-2.5 bg-muted/20 hover:bg-muted/30 transition-colors text-left"
+            >
+              <span className="text-xs text-muted-foreground">
+                Meta prompt (paste into AI)
+              </span>
+              <span className="text-xs text-muted-foreground/70">▾</span>
+            </button>
+            <pre className="text-xs p-4 overflow-x-auto whitespace-pre-wrap font-mono text-muted-foreground max-h-[180px] overflow-y-auto border-t animate-in fade-in slide-in-from-top-1 duration-150">
               {generatedPrompt}
             </pre>
-          </div>
+          </>
+        ) : (
+          /* Collapsed state - entire area clickable with hover affordance */
+          <button
+            onClick={() => setShowGeneratedPrompt(true)}
+            className="w-full text-left group cursor-pointer"
+          >
+            <div className="flex items-center justify-between px-4 py-2.5 bg-muted/20 group-hover:bg-muted/30 transition-colors">
+              <span className="text-xs text-muted-foreground">
+                Meta prompt (paste into AI)
+              </span>
+              <span className="text-xs text-muted-foreground/70 transition-transform duration-200 group-hover:translate-x-0.5">
+                ▸
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground/50 group-hover:text-muted-foreground/70 px-4 py-2 border-t truncate font-mono transition-colors">
+              {promptPreview}
+            </p>
+          </button>
         )}
       </div>
     </div>
-  ) : (
-    <p className="text-xs text-muted-foreground text-center py-4">
-      Write the rough version. We'll rewrite it.
-    </p>
-  );
+  ) : null;
 
   if (!isLoaded) {
     return (
@@ -246,7 +266,9 @@ function HomeContent() {
             {/* Header */}
             <div
               className={`flex items-center h-12 ${
-                sidebarCollapsed ? "justify-center px-2" : "justify-between px-3"
+                sidebarCollapsed
+                  ? "justify-center px-2"
+                  : "justify-between px-3"
               }`}
             >
               {!sidebarCollapsed && (
@@ -275,10 +297,14 @@ function HomeContent() {
                   variant="ghost"
                   size="icon"
                   className={`h-8 w-8 text-muted-foreground hover:text-foreground ${
-                    !sidebarCollapsed ? "bg-muted/60 rounded-md" : "hover:bg-muted/60"
+                    !sidebarCollapsed
+                      ? "bg-muted/60 rounded-md"
+                      : "hover:bg-muted/60"
                   }`}
                   onClick={() => setSidebarCollapsed((prev) => !prev)}
-                  title={sidebarCollapsed ? "Expand recents" : "Collapse recents"}
+                  title={
+                    sidebarCollapsed ? "Expand recents" : "Collapse recents"
+                  }
                   aria-label={
                     sidebarCollapsed ? "Expand recents" : "Collapse recents"
                   }
@@ -294,12 +320,14 @@ function HomeContent() {
                 {history.length > 0 ? (
                   <div className="space-y-1">
                     {history.map((item) => {
-                      const channelLabel = getChannelLabel(item.channel);
-                      const audienceLabel = getAudienceLabel(
+                      const channelLabel = getChannelLabelForHistory(
+                        item.channel,
+                      );
+                      const audienceLabel = getAudienceLabelForHistory(
                         item.channel,
                         item.audience,
                       );
-                      const toneLabel = getToneLabel(item.tone);
+                      const toneLabel = getToneLabelForHistory(item.tone);
 
                       return (
                         <div
@@ -367,7 +395,7 @@ function HomeContent() {
               className="text-foreground"
               onClick={() => {
                 setMessage("");
-                setTone(null);
+                setIntent(DEFAULT_INTENT);
                 textareaRef.current?.focus();
               }}
             />
@@ -460,8 +488,12 @@ function HomeContent() {
                 onClick={() => setShowAdvancedSettings(!showAdvancedSettings)}
                 className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
               >
-                <span>{showAdvancedSettings ? "Hide" : "Show"} advanced settings</span>
-                <span className="text-[10px]">{showAdvancedSettings ? "▲" : "▼"}</span>
+                <span>
+                  {showAdvancedSettings ? "Hide" : "Show"} advanced settings
+                </span>
+                <span className="text-[10px]">
+                  {showAdvancedSettings ? "▲" : "▼"}
+                </span>
               </button>
 
               {/* Advanced Settings */}
@@ -477,7 +509,9 @@ function HomeContent() {
                       </label>
                       <Select
                         value={preferences.country || "placeholder"}
-                        onValueChange={(value) => setCountry(value === "placeholder" ? "" : value)}
+                        onValueChange={(value) =>
+                          setCountry(value === "placeholder" ? "" : value)
+                        }
                       >
                         <SelectTrigger className="h-9">
                           <SelectValue placeholder="Select country" />
@@ -500,7 +534,9 @@ function HomeContent() {
                       </label>
                       <Select
                         value={preferences.jobCategory || "placeholder"}
-                        onValueChange={(value) => setJobCategory(value === "placeholder" ? "" : value)}
+                        onValueChange={(value) =>
+                          setJobCategory(value === "placeholder" ? "" : value)
+                        }
                       >
                         <SelectTrigger className="h-9">
                           <SelectValue placeholder="Select industry" />
@@ -523,7 +559,9 @@ function HomeContent() {
                       </label>
                       <Select
                         value={preferences.companySize || "placeholder"}
-                        onValueChange={(value) => setCompanySize(value === "placeholder" ? "" : value)}
+                        onValueChange={(value) =>
+                          setCompanySize(value === "placeholder" ? "" : value)
+                        }
                       >
                         <SelectTrigger className="h-9">
                           <SelectValue placeholder="Select size" />
@@ -546,7 +584,11 @@ function HomeContent() {
                       </label>
                       <Select
                         value={preferences.yearsExperience || "placeholder"}
-                        onValueChange={(value) => setYearsExperience(value === "placeholder" ? "" : value)}
+                        onValueChange={(value) =>
+                          setYearsExperience(
+                            value === "placeholder" ? "" : value,
+                          )
+                        }
                       >
                         <SelectTrigger className="h-9">
                           <SelectValue placeholder="Select experience" />
@@ -569,22 +611,27 @@ function HomeContent() {
             </div>
           )}
 
+          {/* Intent Sentence Bar */}
+          <IntentSentenceBar intent={intent} onIntentChange={setIntent} />
+
           {/* Main Input Card */}
           <div className="rounded-2xl border bg-card shadow-sm overflow-hidden">
-            {/* Progress line - top border */}
-            <div className="h-0.5 bg-muted/30">
-              <div
-                className={cn(
-                  "h-full transition-all duration-300 ease-out",
-                  message.trim().length >= MIN_CHARS
-                    ? "bg-green-500/40"
-                    : "bg-red-500/30"
-                )}
-                style={{
-                  width: `${Math.min((message.trim().length / MIN_CHARS) * 100, 100)}%`,
-                }}
-              />
-            </div>
+            {/* Progress line - top border (only visible when focused) */}
+            {isTextareaFocused && (
+              <div className="h-0.5 bg-muted/30">
+                <div
+                  className={cn(
+                    "h-full transition-all duration-300 ease-out",
+                    message.trim().length >= MIN_CHARS
+                      ? "bg-green-500/40"
+                      : "bg-red-500/30",
+                  )}
+                  style={{
+                    width: `${Math.min((message.trim().length / MIN_CHARS) * 100, 100)}%`,
+                  }}
+                />
+              </div>
+            )}
 
             {/* Textarea with counter */}
             <div className="relative">
@@ -592,71 +639,31 @@ function HomeContent() {
                 ref={textareaRef}
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                placeholder="What do you want to say?"
+                onFocus={() => setIsTextareaFocused(true)}
+                onBlur={() => setIsTextareaFocused(false)}
+                placeholder="Original text to transform"
+                spellCheck={false}
                 className="min-h-[100px] text-base resize-none border-0 shadow-none focus-visible:ring-0 rounded-none p-4 placeholder:text-muted-foreground/50 overflow-hidden"
                 autoFocus
               />
 
-              {/* Counter - only shows when under minimum */}
-              {message.trim().length < MIN_CHARS && message.trim().length > 0 && (
-                <span className="absolute bottom-2 right-4 text-xs text-muted-foreground/50 pointer-events-none transition-opacity duration-200">
-                  {MIN_CHARS - message.trim().length} more
-                </span>
-              )}
-            </div>
-
-            {/* Controls row - Channel left, To + Tone right */}
-            <div className="px-4 pb-3 pt-0 flex items-center justify-between gap-3">
-              {/* Left: Channel dropdown */}
-              <Select
-                value={channel}
-                onValueChange={(value) => setChannel(value as Platform)}
-              >
-                <SelectTrigger className="h-8 w-auto rounded-full text-xs font-medium bg-primary text-primary-foreground border-0 shadow-none hover:bg-primary/90">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {CHANNEL_OPTIONS.map((ch) => (
-                    <SelectItem key={ch.value} value={ch.value}>
-                      {ch.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              {/* Right: Audience dropdown + Tone pill */}
-              <div className="flex items-center gap-2">
-                {audienceOptions.length > 1 && (
-                  <Select value={audience} onValueChange={setAudience}>
-                      <SelectTrigger className="h-8 w-auto rounded-full text-xs bg-muted/40 text-muted-foreground border-0 shadow-none hover:bg-muted">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {audienceOptions.map((opt) => (
-                          <SelectItem key={opt.value} value={opt.value}>
-                            {opt.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+              {/* Counter - only shows when focused and under minimum */}
+              {isTextareaFocused &&
+                message.trim().length < MIN_CHARS &&
+                message.trim().length > 0 && (
+                  <span className="absolute bottom-2 right-4 text-xs text-muted-foreground/50 pointer-events-none transition-opacity duration-200">
+                    {MIN_CHARS - message.trim().length} more
+                  </span>
                 )}
-                <button
-                  onClick={() => {
-                    const currentIndex = TONE_OPTIONS.findIndex(
-                      (t) => t.value === effectiveTone,
-                    );
-                    const nextIndex = (currentIndex + 1) % TONE_OPTIONS.length;
-                    setTone(TONE_OPTIONS[nextIndex].value);
-                  }}
-                  className="px-3 py-1.5 rounded-full text-xs font-medium bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
-                  title="Click to change tone"
-                >
-                  {TONE_OPTIONS.find((t) => t.value === effectiveTone)?.label ??
-                    effectiveTone}
-                </button>
-              </div>
             </div>
           </div>
+
+          {/* Inline guidance - directly under input when empty */}
+          {!showPreview && (
+            <p className="text-xs text-muted-foreground/60 mt-2">
+              Start typing to generate a meta prompt automatically
+            </p>
+          )}
 
           {previewPanel}
         </div>

@@ -9,8 +9,8 @@ interface LogoProps {
 export function Logo({ className = "", iconClassName = "", onClick }: LogoProps) {
   const content = (
     <>
-      <Pyramid className={`h-4 w-4 animate-spin-y ${iconClassName}`} />
-      <span className="font-semibold">TextPrism</span>
+      <Pyramid className={`h-5 w-5 animate-spin-y ${iconClassName}`} />
+      <span className="font-semibold text-base tracking-tight">TextPrism</span>
     </>
   );
 

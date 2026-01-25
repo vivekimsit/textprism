@@ -3,6 +3,7 @@
 import { Suspense, useMemo, useState, useEffect, useRef } from "react";
 import { useTheme } from "next-themes";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -20,6 +21,7 @@ import {
   Sun,
   Moon,
   PanelLeft,
+  ChevronDown,
 } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { toast } from "sonner";
@@ -40,6 +42,8 @@ import { useHistory, type HistoryItem } from "@/hooks/use-history";
 import {
   generatePrompt,
   canGenerate,
+  MIN_CHARS,
+  MAX_CHARS,
   type Platform,
 } from "@/lib/generate-prompt";
 
@@ -67,6 +71,7 @@ function HomeContent() {
   const [showSettings, setShowSettings] = useState(false);
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [showGeneratedPrompt, setShowGeneratedPrompt] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -173,12 +178,7 @@ function HomeContent() {
 
   const previewPanel = showPreview ? (
     <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
-      <div className="relative">
-        <pre className="text-xs bg-muted/30 rounded-2xl p-4 overflow-x-auto whitespace-pre-wrap font-mono text-muted-foreground max-h-[180px] overflow-y-auto border">
-          {generatedPrompt}
-        </pre>
-      </div>
-
+      {/* Primary action - always visible */}
       <Button onClick={handleCopy} className="w-full rounded-full h-10">
         {copied ? (
           <>
@@ -192,11 +192,37 @@ function HomeContent() {
           </>
         )}
       </Button>
+
+      {/* Collapsible generated prompt - secondary, for advanced users */}
+      <div className="space-y-2">
+        <button
+          onClick={() => setShowGeneratedPrompt(!showGeneratedPrompt)}
+          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors w-full justify-center"
+        >
+          <ChevronDown
+            className={cn(
+              "h-3 w-3 transition-transform duration-200",
+              showGeneratedPrompt && "rotate-180"
+            )}
+          />
+          <span>
+            {showGeneratedPrompt ? "Hide" : "View"} generated prompt
+          </span>
+        </button>
+
+        {showGeneratedPrompt && (
+          <div className="animate-in fade-in slide-in-from-top-2 duration-200">
+            <pre className="text-xs bg-muted/30 rounded-2xl p-4 overflow-x-auto whitespace-pre-wrap font-mono text-muted-foreground max-h-[180px] overflow-y-auto border">
+              {generatedPrompt}
+            </pre>
+          </div>
+        )}
+      </div>
     </div>
   ) : (
-    <div className="text-xs text-muted-foreground border border-dashed rounded-2xl p-4">
+    <p className="text-xs text-muted-foreground text-center py-4">
       Write the rough version. We'll rewrite it.
-    </div>
+    </p>
   );
 
   if (!isLoaded) {
@@ -335,10 +361,10 @@ function HomeContent() {
       {/* Main Content */}
       <main className="flex-1 flex items-center justify-center px-4 py-8">
         <div className="w-full max-w-2xl space-y-4">
-          {/* Header - logo left, controls right */}
-          <div className="flex items-center justify-between px-1">
+          {/* Header - logo anchored left, controls right */}
+          <div className="flex items-center justify-between">
             <Logo
-              className="text-sm text-muted-foreground"
+              className="text-foreground"
               onClick={() => {
                 setMessage("");
                 setTone(null);
@@ -545,15 +571,39 @@ function HomeContent() {
 
           {/* Main Input Card */}
           <div className="rounded-2xl border bg-card shadow-sm overflow-hidden">
-            {/* Textarea */}
-            <Textarea
-              ref={textareaRef}
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              placeholder="What do you want to say?"
-              className="min-h-[100px] text-base resize-none border-0 shadow-none focus-visible:ring-0 rounded-none p-4 placeholder:text-muted-foreground/50 overflow-hidden"
-              autoFocus
-            />
+            {/* Progress line - top border */}
+            <div className="h-0.5 bg-muted/30">
+              <div
+                className={cn(
+                  "h-full transition-all duration-300 ease-out",
+                  message.trim().length >= MIN_CHARS
+                    ? "bg-green-500/40"
+                    : "bg-red-500/30"
+                )}
+                style={{
+                  width: `${Math.min((message.trim().length / MIN_CHARS) * 100, 100)}%`,
+                }}
+              />
+            </div>
+
+            {/* Textarea with counter */}
+            <div className="relative">
+              <Textarea
+                ref={textareaRef}
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder="What do you want to say?"
+                className="min-h-[100px] text-base resize-none border-0 shadow-none focus-visible:ring-0 rounded-none p-4 placeholder:text-muted-foreground/50 overflow-hidden"
+                autoFocus
+              />
+
+              {/* Counter - only shows when under minimum */}
+              {message.trim().length < MIN_CHARS && message.trim().length > 0 && (
+                <span className="absolute bottom-2 right-4 text-xs text-muted-foreground/50 pointer-events-none transition-opacity duration-200">
+                  {MIN_CHARS - message.trim().length} more
+                </span>
+              )}
+            </div>
 
             {/* Controls row - Channel left, To + Tone right */}
             <div className="px-4 pb-3 pt-0 flex items-center justify-between gap-3">

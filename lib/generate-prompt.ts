@@ -8,6 +8,10 @@ export interface GeneratePromptParams {
   whoIAm: string;
 }
 
+// Character limits for message input
+export const MIN_CHARS = 10;
+export const MAX_CHARS = 2000;
+
 // Channel-specific formatting hints (minimal, not over-engineered)
 const CHANNEL_HINTS: Record<Platform, string> = {
   slack: "Use markdown, bullets for lists, keep it scannable",
@@ -47,5 +51,5 @@ Generate the ${channel} message:`;
 
 // Check if we have enough input to generate
 export function canGenerate(message: string): boolean {
-  return message.trim().length >= 10;
+  return message.trim().length >= MIN_CHARS;
 }

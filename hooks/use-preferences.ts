@@ -7,11 +7,19 @@ const STORAGE_KEY = "textprism-preferences";
 export interface UserPreferences {
   whoIAm: string;
   defaultTone: string;
+  country: string;
+  jobCategory: string;
+  companySize: string;
+  yearsExperience: string;
 }
 
 const DEFAULT_PREFERENCES: UserPreferences = {
   whoIAm: "senior-engineer",
   defaultTone: "direct",
+  country: "",
+  jobCategory: "",
+  companySize: "",
+  yearsExperience: "",
 };
 
 export function usePreferences() {
@@ -62,11 +70,43 @@ export function usePreferences() {
     [updatePreferences],
   );
 
+  const setCountry = useCallback(
+    (value: string) => {
+      updatePreferences({ country: value });
+    },
+    [updatePreferences],
+  );
+
+  const setJobCategory = useCallback(
+    (value: string) => {
+      updatePreferences({ jobCategory: value });
+    },
+    [updatePreferences],
+  );
+
+  const setCompanySize = useCallback(
+    (value: string) => {
+      updatePreferences({ companySize: value });
+    },
+    [updatePreferences],
+  );
+
+  const setYearsExperience = useCallback(
+    (value: string) => {
+      updatePreferences({ yearsExperience: value });
+    },
+    [updatePreferences],
+  );
+
   return {
     preferences,
     isLoaded,
     setWhoIAm,
     setDefaultTone,
+    setCountry,
+    setJobCategory,
+    setCompanySize,
+    setYearsExperience,
     updatePreferences,
   };
 }
@@ -89,6 +129,58 @@ export const TONE_OPTIONS = [
   { value: "casual", label: "Casual" },
   { value: "formal", label: "Formal" },
   { value: "persuasive", label: "Persuasive" },
+];
+
+export const COUNTRY_OPTIONS = [
+  { value: "us", label: "United States" },
+  { value: "uk", label: "United Kingdom" },
+  { value: "ca", label: "Canada" },
+  { value: "au", label: "Australia" },
+  { value: "de", label: "Germany" },
+  { value: "fr", label: "France" },
+  { value: "in", label: "India" },
+  { value: "jp", label: "Japan" },
+  { value: "sg", label: "Singapore" },
+  { value: "nl", label: "Netherlands" },
+  { value: "se", label: "Sweden" },
+  { value: "br", label: "Brazil" },
+  { value: "other", label: "Other" },
+];
+
+export const JOB_CATEGORY_OPTIONS = [
+  { value: "tech", label: "Technology" },
+  { value: "finance", label: "Finance & Banking" },
+  { value: "healthcare", label: "Healthcare" },
+  { value: "education", label: "Education" },
+  { value: "marketing", label: "Marketing & Advertising" },
+  { value: "sales", label: "Sales" },
+  { value: "consulting", label: "Consulting" },
+  { value: "legal", label: "Legal" },
+  { value: "hr", label: "Human Resources" },
+  { value: "operations", label: "Operations" },
+  { value: "media", label: "Media & Entertainment" },
+  { value: "retail", label: "Retail & E-commerce" },
+  { value: "manufacturing", label: "Manufacturing" },
+  { value: "real-estate", label: "Real Estate" },
+  { value: "nonprofit", label: "Non-profit" },
+  { value: "government", label: "Government" },
+  { value: "other", label: "Other" },
+];
+
+export const COMPANY_SIZE_OPTIONS = [
+  { value: "startup", label: "Startup (1-10)" },
+  { value: "small", label: "Small (11-50)" },
+  { value: "medium", label: "Medium (51-200)" },
+  { value: "large", label: "Large (201-1000)" },
+  { value: "enterprise", label: "Enterprise (1000+)" },
+];
+
+export const YEARS_EXPERIENCE_OPTIONS = [
+  { value: "0-1", label: "0-1 years" },
+  { value: "2-4", label: "2-4 years" },
+  { value: "5-7", label: "5-7 years" },
+  { value: "8-10", label: "8-10 years" },
+  { value: "10+", label: "10+ years" },
 ];
 
 // Context-dependent audience options per channel

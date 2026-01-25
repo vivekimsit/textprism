@@ -31,6 +31,10 @@ import {
   AUDIENCE_BY_CHANNEL,
   DEFAULT_AUDIENCE,
   CHANNEL_OPTIONS,
+  COUNTRY_OPTIONS,
+  JOB_CATEGORY_OPTIONS,
+  COMPANY_SIZE_OPTIONS,
+  YEARS_EXPERIENCE_OPTIONS,
 } from "@/hooks/use-preferences";
 import { useHistory, type HistoryItem } from "@/hooks/use-history";
 import {
@@ -42,7 +46,16 @@ import {
 function HomeContent() {
   const { setTheme, resolvedTheme } = useTheme();
   const [isMounted, setIsMounted] = useState(false);
-  const { preferences, isLoaded, setWhoIAm, setDefaultTone } = usePreferences();
+  const {
+    preferences,
+    isLoaded,
+    setWhoIAm,
+    setDefaultTone,
+    setCountry,
+    setJobCategory,
+    setCompanySize,
+    setYearsExperience,
+  } = usePreferences();
   const { history, addToHistory, clearHistory, removeFromHistory } =
     useHistory();
 
@@ -52,6 +65,7 @@ function HomeContent() {
   const [tone, setTone] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -414,6 +428,118 @@ function HomeContent() {
                   </Select>
                 </div>
               </div>
+
+              {/* Advanced Settings Toggle */}
+              <button
+                onClick={() => setShowAdvancedSettings(!showAdvancedSettings)}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+              >
+                <span>{showAdvancedSettings ? "Hide" : "Show"} advanced settings</span>
+                <span className="text-[10px]">{showAdvancedSettings ? "▲" : "▼"}</span>
+              </button>
+
+              {/* Advanced Settings */}
+              {showAdvancedSettings && (
+                <div className="space-y-4 pt-2 border-t border-border/50 animate-in fade-in slide-in-from-top-1 duration-150">
+                  <p className="text-xs text-muted-foreground">
+                    These help generate more contextually relevant prompts
+                  </p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-xs text-muted-foreground">
+                        Country
+                      </label>
+                      <Select
+                        value={preferences.country || "placeholder"}
+                        onValueChange={(value) => setCountry(value === "placeholder" ? "" : value)}
+                      >
+                        <SelectTrigger className="h-9">
+                          <SelectValue placeholder="Select country" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="placeholder" disabled>
+                            Select country
+                          </SelectItem>
+                          {COUNTRY_OPTIONS.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs text-muted-foreground">
+                        Industry
+                      </label>
+                      <Select
+                        value={preferences.jobCategory || "placeholder"}
+                        onValueChange={(value) => setJobCategory(value === "placeholder" ? "" : value)}
+                      >
+                        <SelectTrigger className="h-9">
+                          <SelectValue placeholder="Select industry" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="placeholder" disabled>
+                            Select industry
+                          </SelectItem>
+                          {JOB_CATEGORY_OPTIONS.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs text-muted-foreground">
+                        Company Size
+                      </label>
+                      <Select
+                        value={preferences.companySize || "placeholder"}
+                        onValueChange={(value) => setCompanySize(value === "placeholder" ? "" : value)}
+                      >
+                        <SelectTrigger className="h-9">
+                          <SelectValue placeholder="Select size" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="placeholder" disabled>
+                            Select size
+                          </SelectItem>
+                          {COMPANY_SIZE_OPTIONS.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs text-muted-foreground">
+                        Experience
+                      </label>
+                      <Select
+                        value={preferences.yearsExperience || "placeholder"}
+                        onValueChange={(value) => setYearsExperience(value === "placeholder" ? "" : value)}
+                      >
+                        <SelectTrigger className="h-9">
+                          <SelectValue placeholder="Select experience" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="placeholder" disabled>
+                            Select experience
+                          </SelectItem>
+                          {YEARS_EXPERIENCE_OPTIONS.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

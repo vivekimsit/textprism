@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState, useEffect, useRef } from "react";
+import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { IntentPopover } from "./IntentPopover";
 import { OptionList, type OptionItem } from "./OptionList";
@@ -32,8 +33,14 @@ interface IntentSentenceProps {
   isExternalActive?: boolean;
   /** Compact text size */
   compact?: boolean;
-  /** Show helper text below sentence */
-  showHelper?: boolean;
+  /** Input length for helper text */
+  inputLength?: number;
+  /** Character threshold for generation */
+  threshold?: number;
+  /** Whether currently generating */
+  isGenerating?: boolean;
+  /** Whether meta prompt has content */
+  hasContent?: boolean;
   className?: string;
 }
 
@@ -85,10 +92,10 @@ function Token({
     triggerRef.current?.focus();
   }
 
-  // Show underline when sentence is active OR token is hovered/focused/open
-  const showUnderline = isSentenceActive || isHovered || isFocused || isOpen;
-  // Solid underline when directly interacting with this token
-  const solidUnderline = isHovered || isFocused || isOpen;
+  // Token is "active" when directly interacting
+  const isTokenActive = isHovered || isFocused || isOpen;
+  // Show chevron only when this specific token is active
+  const showChevron = isTokenActive;
 
   return (
     <>
@@ -102,33 +109,44 @@ function Token({
         onBlur={() => setIsFocused(false)}
         data-intent-token
         className={cn(
-          // Base: looks like inline text
+          // Base: inline token with dashed underline
+          "inline-flex items-center gap-0.5",
           "transition-all duration-150 ease-out",
+          "cursor-pointer",
+          // Border-bottom style (dashed by default, solid on hover)
+          "border-b",
+          isTokenActive
+            ? "border-foreground/40 border-solid"
+            : isSentenceActive
+            ? "border-muted-foreground/40 border-dashed"
+            : "border-transparent",
           // Text color
-          solidUnderline
+          isTokenActive
             ? "text-foreground"
             : isSentenceActive
-            ? "text-foreground/90"
-            : "text-foreground/80",
-          // Underline: dotted when sentence active, solid when token hovered/focused/open
-          showUnderline && [
-            "underline underline-offset-2",
-            solidUnderline
-              ? "decoration-foreground/50"
-              : "decoration-dotted decoration-muted-foreground/40",
-          ],
-          // Cursor
-          "cursor-pointer",
-          // Focus ring (no layout shift)
+            ? "text-foreground/85"
+            : "text-foreground/70",
+          // Subtle background on hover
+          isTokenActive && "bg-muted/50 -mx-1 px-1 rounded",
+          // Focus ring
           "focus:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:rounded-sm",
           // Warning state
-          isWarning && "text-amber-600 dark:text-amber-400"
+          isWarning && "text-amber-600 dark:text-amber-400 border-amber-400/50"
         )}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         aria-label={ariaLabel}
       >
-        {label}
+        <span>{label}</span>
+        {/* Chevron - only visible on hover/focus/open */}
+        <ChevronDown
+          className={cn(
+            "h-3 w-3 shrink-0 transition-all duration-150",
+            showChevron ? "opacity-60 w-3" : "opacity-0 w-0",
+            isOpen && "rotate-180"
+          )}
+          aria-hidden="true"
+        />
       </button>
 
       <IntentPopover
@@ -153,7 +171,10 @@ export function IntentSentence({
   onIntentChange,
   isExternalActive = false,
   compact = false,
-  showHelper = false,
+  inputLength = 0,
+  threshold = 20,
+  isGenerating = false,
+  hasContent = false,
   className,
 }: IntentSentenceProps) {
   const [isHovered, setIsHovered] = useState(false);
@@ -250,24 +271,49 @@ export function IntentSentence({
   const channelSuffix = getChannelSuffix(intent.channel);
   const article = /^[aeiou]/i.test(channelLabel) ? "an" : "a";
   const personaLabel = getPersonaLabel(intent.persona);
-  const toneLabel = getToneLabel(intent.tone).toLowerCase();
+  const toneLabel = getToneLabel(intent.tone);
+  const audienceLabel = getAudienceLabel(intent.audience);
 
-  // Natural lowercase audience labels
-  function formatAudience(audience: Audience | null): string {
-    if (audience === null) return "someone";
-    const label = getAudienceLabel(audience);
-    const naturalForms: Record<string, string> = {
-      Team: "the team",
-      Manager: "my manager",
-      DM: "a colleague",
-      Stakeholder: "stakeholders",
-      Client: "a client",
-      Recruiter: "a recruiter",
-      Public: "the public",
-      Network: "my network",
-      Community: "the community",
-    };
-    return naturalForms[label] || label.toLowerCase();
+  // Status logic
+  const isAboveThreshold = inputLength >= threshold;
+  const remaining = threshold - inputLength;
+
+  // Status text for right side of sentence row
+  function renderStatus() {
+    if (!isAboveThreshold) return null;
+    if (isGenerating) {
+      return (
+        <span className="text-xs text-muted-foreground/60 flex items-center gap-1.5">
+          <span className="inline-flex gap-0.5">
+            <span className="w-1 h-1 bg-muted-foreground/50 rounded-full animate-pulse" />
+            <span className="w-1 h-1 bg-muted-foreground/50 rounded-full animate-pulse [animation-delay:150ms]" />
+            <span className="w-1 h-1 bg-muted-foreground/50 rounded-full animate-pulse [animation-delay:300ms]" />
+          </span>
+          Generating…
+        </span>
+      );
+    }
+    if (hasContent) {
+      return <span className="text-xs text-muted-foreground/50">Up to date</span>;
+    }
+    return null;
+  }
+
+  // Helper text logic
+  function renderHelper() {
+    if (isAboveThreshold) return null;
+    if (inputLength === 0) {
+      return (
+        <p className="text-xs text-muted-foreground/50 mt-1.5">
+          Paste your original text below to generate the meta prompt.
+        </p>
+      );
+    }
+    return (
+      <p className="text-xs text-muted-foreground/50 mt-1.5">
+        Keep typing — {remaining} chars to generate.
+      </p>
+    );
   }
 
   return (
@@ -276,70 +322,67 @@ export function IntentSentence({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Sentence: Writing a {channel} message to {audience} in a {tone} tone, as {role}. */}
-      <p
-        className={cn(
-          "leading-relaxed",
-          compact ? "text-xs" : "text-sm",
-          "text-muted-foreground"
-        )}
-      >
-        Writing {article}{" "}
-        <Token
-          label={channelLabel}
-          value={intent.channel}
-          options={CHANNEL_OPTIONS}
-          onChange={handleChannelChange}
-          isSentenceActive={isSentenceActive}
-          ariaLabel="Change channel"
-        />
-        {channelSuffix ? ` ${channelSuffix}` : ""}
-        {showAudience ? (
-          <>
-            {" "}to{" "}
-            <Token
-              label={formatAudience(intent.audience)}
-              value={intent.audience}
-              options={audienceOptions}
-              onChange={handleAudienceChange}
-              isSentenceActive={isSentenceActive}
-              isWarning={intent.audience === null}
-              ariaLabel="Change audience"
-            />
-          </>
-        ) : null}
-        {" "}in a{" "}
-        <Token
-          label={toneLabel}
-          value={intent.tone}
-          options={TONE_OPTIONS}
-          onChange={handleToneChange}
-          isSentenceActive={isSentenceActive}
-          ariaLabel="Change tone"
-        />
-        {" "}tone
-        {personaLabel ? (
-          <>
-            , as{" "}
-            <Token
-              label={personaLabel}
-              value={intent.persona}
-              options={PERSONA_OPTIONS}
-              onChange={handlePersonaChange}
-              isSentenceActive={isSentenceActive}
-              ariaLabel="Change role"
-            />
-          </>
-        ) : null}
-        .
-      </p>
-
-      {/* Helper text */}
-      {showHelper ? (
-        <p className="text-xs text-muted-foreground/50 mt-1">
-          Paste your original text below to generate the meta prompt.
+      {/* Sentence row with status on right */}
+      <div className="flex items-baseline justify-between gap-4">
+        {/* Sentence: Writing a {channel} {suffix} to {audience} — tone: {tone} — as {role}. */}
+        <p
+          className={cn(
+            "leading-relaxed",
+            compact ? "text-xs" : "text-sm",
+            "text-muted-foreground"
+          )}
+        >
+          Writing {article}{" "}
+          <Token
+            label={channelLabel}
+            value={intent.channel}
+            options={CHANNEL_OPTIONS}
+            onChange={handleChannelChange}
+            isSentenceActive={isSentenceActive}
+            ariaLabel="Change channel"
+          />
+          {channelSuffix ? ` ${channelSuffix}` : ""}
+          {showAudience ? (
+            <>
+              {" "}to{" "}
+              <Token
+                label={audienceLabel}
+                value={intent.audience}
+                options={audienceOptions}
+                onChange={handleAudienceChange}
+                isSentenceActive={isSentenceActive}
+                isWarning={intent.audience === null}
+                ariaLabel="Change audience"
+              />
+            </>
+          ) : null}
+          {" "}— tone:{" "}
+          <Token
+            label={toneLabel}
+            value={intent.tone}
+            options={TONE_OPTIONS}
+            onChange={handleToneChange}
+            isSentenceActive={isSentenceActive}
+            ariaLabel="Change tone"
+          />
+          {" "}— as{" "}
+          <Token
+            label={personaLabel}
+            value={intent.persona}
+            options={PERSONA_OPTIONS}
+            onChange={handlePersonaChange}
+            isSentenceActive={isSentenceActive}
+            ariaLabel="Change role"
+          />
+          .
         </p>
-      ) : null}
+
+        {/* Status on right side */}
+        {renderStatus()}
+      </div>
+
+      {/* Helper text below sentence */}
+      {renderHelper()}
 
       {/* Nudge toast */}
       {nudgeState ? (

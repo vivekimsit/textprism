@@ -23,39 +23,6 @@ interface ComposerDockProps {
   className?: string;
 }
 
-// Helper text component
-function StatusText({
-  length,
-  threshold,
-  isGenerating,
-  hasContent,
-}: {
-  length: number;
-  threshold: number;
-  isGenerating: boolean;
-  hasContent: boolean;
-}) {
-  const remaining = threshold - length;
-
-  // Below threshold
-  if (length < threshold) {
-    return <span>{remaining} chars to generate</span>;
-  }
-
-  // Generating
-  if (isGenerating) {
-    return <span>Generating…</span>;
-  }
-
-  // Ready (above threshold, has content, not generating)
-  if (hasContent) {
-    return <span>Up to date</span>;
-  }
-
-  // Fallback (shouldn't happen)
-  return <span>Ready</span>;
-}
-
 export const ComposerDock = forwardRef<HTMLTextAreaElement, ComposerDockProps>(
   function ComposerDock(
     {
@@ -76,6 +43,8 @@ export const ComposerDock = forwardRef<HTMLTextAreaElement, ComposerDockProps>(
     const textareaRef =
       (ref as React.RefObject<HTMLTextAreaElement>) || internalRef;
     const [isTextareaFocused, setIsTextareaFocused] = useState(false);
+
+    const trimmedLength = value.trim().length;
 
     // Restore cursor position when provided (after layout transition)
     const hasRestoredRef = useRef(false);
@@ -125,13 +94,16 @@ export const ComposerDock = forwardRef<HTMLTextAreaElement, ComposerDockProps>(
     if (centered) {
       return (
         <div className={cn("w-full max-w-2xl mx-auto px-4", className)}>
-          {/* Intent sentence with helper */}
+          {/* Intent sentence with helper/status */}
           <IntentSentence
             intent={intent}
             onIntentChange={onIntentChange}
             isExternalActive={isTextareaFocused}
             compact
-            showHelper
+            inputLength={trimmedLength}
+            threshold={threshold}
+            isGenerating={isGenerating}
+            hasContent={hasContent}
             className="mb-3"
           />
 
@@ -157,16 +129,6 @@ export const ComposerDock = forwardRef<HTMLTextAreaElement, ComposerDockProps>(
             className="min-h-[100px] text-base resize-none border bg-card shadow-sm rounded-xl p-4 placeholder:text-muted-foreground/50 focus-visible:ring-1 focus-visible:ring-ring"
             autoFocus
           />
-
-          {/* Status text */}
-          <p className="text-xs text-muted-foreground/50 mt-2">
-            <StatusText
-              length={value.trim().length}
-              threshold={threshold}
-              isGenerating={isGenerating}
-              hasContent={hasContent}
-            />
-          </p>
         </div>
       );
     }
@@ -182,14 +144,17 @@ export const ComposerDock = forwardRef<HTMLTextAreaElement, ComposerDockProps>(
           className
         )}
       >
-        <div className="px-4 py-3 max-w-2xl mx-auto">
-          {/* Intent sentence with helper */}
+        <div className="px-4 pt-3 pb-8 max-w-2xl mx-auto">
+          {/* Intent sentence with helper/status */}
           <IntentSentence
             intent={intent}
             onIntentChange={onIntentChange}
             isExternalActive={isTextareaFocused}
             compact
-            showHelper
+            inputLength={trimmedLength}
+            threshold={threshold}
+            isGenerating={isGenerating}
+            hasContent={hasContent}
             className="mb-2"
           />
 
@@ -215,16 +180,6 @@ export const ComposerDock = forwardRef<HTMLTextAreaElement, ComposerDockProps>(
             className="min-h-[72px] text-base resize-none border bg-background shadow-sm rounded-xl p-3 placeholder:text-muted-foreground/50 focus-visible:ring-1 focus-visible:ring-ring"
             autoFocus
           />
-
-          {/* Status text */}
-          <p className="text-xs text-muted-foreground/50 mt-1.5">
-            <StatusText
-              length={value.trim().length}
-              threshold={threshold}
-              isGenerating={isGenerating}
-              hasContent={hasContent}
-            />
-          </p>
         </div>
       </div>
     );

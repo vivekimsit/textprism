@@ -15,12 +15,23 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "The Liaison - Professional Message Generator",
-  description: "The Bridge Between Your Thoughts and AI's Best Output. Generate platform-optimized professional messages for Slack, Email, LinkedIn, Reddit, and Quora.",
-  keywords: ["AI", "prompt generator", "professional messages", "slack", "email", "linkedin", "reddit", "quora", "communication"],
-  authors: [{ name: "The Liaison Team" }],
+  title: "TextPrism - Professional Message Generator",
+  description:
+    "The Bridge Between Your Thoughts and AI's Best Output. Generate platform-optimized professional messages for Slack, Email, LinkedIn, Reddit, and Quora.",
+  keywords: [
+    "AI",
+    "prompt generator",
+    "professional messages",
+    "slack",
+    "email",
+    "linkedin",
+    "reddit",
+    "quora",
+    "communication",
+  ],
+  authors: [{ name: "TextPrism Team" }],
   openGraph: {
-    title: "The Liaison - Professional Message Generator",
+    title: "TextPrism - Professional Message Generator",
     description: "Generate platform-optimized professional messages with AI",
     type: "website",
     images: [
@@ -28,13 +39,13 @@ export const metadata: Metadata = {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "The Liaison",
+        alt: "TextPrism",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "The Liaison - Professional Message Generator",
+    title: "TextPrism - Professional Message Generator",
     description: "Generate platform-optimized professional messages with AI",
     images: ["/og-image.png"],
   },

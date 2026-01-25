@@ -1,8 +1,8 @@
-# Quick Start Guide - The Liaison
+# Quick Start Guide - TextPrism
 
 ## 🚀 You're Ready to Launch!
 
-The Liaison MVP is **100% complete** and ready to run. Here's how to get started:
+TextPrism MVP is **100% complete** and ready to run. Here's how to get started:
 
 ## Run Locally (3 Steps)
 
@@ -20,6 +20,7 @@ pnpm dev
 ## Test the Features
 
 ### 1. Try the Free Features First
+
 - Click **"Work (Slack)"** tab
 - Select **"Release Update"** card
 - Fill in:
@@ -32,6 +33,7 @@ pnpm dev
 - Click **"Copy Prompt"** → Toast notification appears ✨
 
 ### 2. Test Pro Features (Soft Paywall)
+
 - Click **"Work (Email)"** tab
 - Select **"Salary Negotiation"** (PRO badge)
 - Fill in the form
@@ -39,11 +41,13 @@ pnpm dev
 - Click **"Unlock with Pro"** → Demo unlock! 🎉
 
 ### 3. Test URL Sharing
+
 - Fill out any scenario
 - Copy the URL from your browser
 - Open in new tab → State restored! 🔗
 
 ### 4. Test Dark Mode
+
 - Your system dark mode should work automatically
 - Theme toggles with system preferences
 
@@ -53,7 +57,7 @@ pnpm dev
 # 1. Create a GitHub repo
 git init
 git add .
-git commit -m "Initial commit: The Liaison MVP"
+git commit -m "Initial commit: TextPrism MVP"
 git branch -M main
 git remote add origin https://github.com/yourusername/textprism.git
 git push -u origin main
@@ -70,6 +74,7 @@ Your app will be live at: `https://your-project.vercel.app`
 ## Next Actions (Optional)
 
 ### Before Public Launch
+
 1. **Replace OG Image**
    - Create 1200x630px image with your branding
    - Save as `public/og-image.png`
@@ -86,6 +91,7 @@ Your app will be live at: `https://your-project.vercel.app`
    ```
 
 ### Marketing Launch
+
 1. **Create accounts on:**
    - Product Hunt
    - Hacker News
@@ -94,7 +100,7 @@ Your app will be live at: `https://your-project.vercel.app`
 
 2. **Launch post ideas:**
    - "I built a tool to generate better AI prompts"
-   - "Stop using ChatGPT wrong - use The Liaison"
+   - "Stop using ChatGPT wrong - use TextPrism"
    - "Platform-specific prompt optimization for devs"
 
 ## File Structure Overview
@@ -117,6 +123,7 @@ Documentation:
 ## Customization Ideas
 
 ### Add More Scenarios
+
 Edit `lib/intent-matrix.ts`:
 
 ```typescript
@@ -136,11 +143,13 @@ Edit `lib/intent-matrix.ts`:
 ```
 
 ### Add New Platform
+
 1. Add to `lib/intent-matrix.ts` Platform type
 2. Add constraints to `lib/platform-constraints.ts`
 3. Add tab to `components/platform-switcher.tsx`
 
 ### Change Styling
+
 - Colors: Edit `app/globals.css` (CSS variables)
 - Components: All in `components/` folder
 - Dark mode: Already configured!
@@ -156,6 +165,7 @@ Edit `lib/intent-matrix.ts`:
 ## Troubleshooting
 
 ### Port already in use?
+
 ```bash
 # Kill process on port 3000
 lsof -ti:3000 | xargs kill -9
@@ -165,6 +175,7 @@ pnpm dev -- -p 3001
 ```
 
 ### Build fails?
+
 ```bash
 # Clear cache and rebuild
 rm -rf .next
@@ -172,6 +183,7 @@ pnpm build
 ```
 
 ### Dependencies issue?
+
 ```bash
 # Clean install
 rm -rf node_modules pnpm-lock.yaml
@@ -181,6 +193,7 @@ pnpm install
 ## Performance
 
 Already optimized:
+
 - ✅ Static generation (fast loading)
 - ✅ Font optimization (next/font)
 - ✅ Tree-shaking (small bundle)
@@ -190,6 +203,7 @@ Already optimized:
 ## Security
 
 Built-in:
+
 - ✅ No API keys in code
 - ✅ Environment variables for secrets
 - ✅ No database (stateless)
@@ -201,6 +215,7 @@ Built-in:
 ## 🎉 That's It!
 
 You have a fully functional, production-ready MVP that:
+
 - ✅ Generates platform-optimized prompts
 - ✅ Supports 5 platforms and 6 scenarios
 - ✅ Has a beautiful responsive UI

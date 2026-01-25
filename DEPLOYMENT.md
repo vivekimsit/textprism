@@ -1,4 +1,4 @@
-# Deployment Guide - The Liaison
+# Deployment Guide - TextPrism
 
 ## Quick Deployment (Vercel - Recommended)
 
@@ -7,7 +7,7 @@
 ```bash
 git init
 git add .
-git commit -m "Initial commit: The Liaison MVP"
+git commit -m "Initial commit: TextPrism MVP"
 git branch -M main
 git remote add origin https://github.com/yourusername/textprism.git
 git push -u origin main
@@ -69,12 +69,14 @@ NEXT_PUBLIC_LEMONSQUEEZY_URL=https://lemonsqueezy.com/checkout/your-link
 ## Custom Domain
 
 ### Vercel
+
 1. Go to your project settings
 2. Navigate to "Domains"
 3. Add your custom domain
 4. Follow DNS configuration instructions
 
 ### Netlify
+
 1. Go to "Domain settings"
 2. Click "Add custom domain"
 3. Follow DNS configuration instructions
@@ -98,9 +100,10 @@ NEXT_PUBLIC_LEMONSQUEEZY_URL=https://lemonsqueezy.com/checkout/your-link
 Replace `public/og-image.png` with a proper image:
 
 **Recommended specs:**
+
 - Size: 1200x630px
 - Format: PNG or JPEG
-- Design: Include "The Liaison" branding and tagline
+- Design: Include "TextPrism" branding and tagline
 - Tools: Canva, Figma, or Photoshop
 
 ## Analytics (Optional)
@@ -114,10 +117,10 @@ pnpm add @vercel/analytics
 Update `app/layout.tsx`:
 
 ```tsx
-import { Analytics } from '@vercel/analytics/react';
+import { Analytics } from "@vercel/analytics/react";
 
 // Add to layout
-<Analytics />
+<Analytics />;
 ```
 
 ### Add Google Analytics
@@ -139,6 +142,7 @@ Add to `app/layout.tsx`:
 ## Monitoring
 
 Monitor your deployment:
+
 - **Vercel**: Built-in analytics and logs
 - **Sentry**: Error tracking
 - **LogRocket**: Session replay
@@ -147,6 +151,7 @@ Monitor your deployment:
 ## Performance Optimization
 
 Already implemented:
+
 - ✅ Static generation where possible
 - ✅ Font optimization with next/font
 - ✅ Tree-shaking with ES modules
@@ -154,6 +159,7 @@ Already implemented:
 - ✅ React 19 compiler optimizations
 
 Future optimizations:
+
 - [ ] Add service worker for offline support
 - [ ] Implement edge caching
 - [ ] Add image optimization for OG images
@@ -162,6 +168,7 @@ Future optimizations:
 ## Support
 
 For deployment issues:
+
 - **Vercel Docs**: https://vercel.com/docs
 - **Next.js Docs**: https://nextjs.org/docs
 - **GitHub Issues**: Create an issue in your repository

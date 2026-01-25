@@ -11,7 +11,8 @@ export interface HistoryItem {
   channel: string;
   audience: string;
   tone: string;
-  inputPreview: string; // First 60 chars of input
+  input: string; // Full user input
+  inputPreview: string; // Short preview of input
   prompt: string; // Full generated prompt
 }
 

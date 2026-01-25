@@ -125,12 +125,13 @@ export const ComposerDock = forwardRef<HTMLTextAreaElement, ComposerDockProps>(
     if (centered) {
       return (
         <div className={cn("w-full max-w-2xl mx-auto px-4", className)}>
-          {/* Intent sentence */}
+          {/* Intent sentence with helper */}
           <IntentSentence
             intent={intent}
             onIntentChange={onIntentChange}
             isExternalActive={isTextareaFocused}
             compact
+            showHelper
             className="mb-3"
           />
 
@@ -182,12 +183,13 @@ export const ComposerDock = forwardRef<HTMLTextAreaElement, ComposerDockProps>(
         )}
       >
         <div className="px-4 py-3 max-w-2xl mx-auto">
-          {/* Intent sentence */}
+          {/* Intent sentence with helper */}
           <IntentSentence
             intent={intent}
             onIntentChange={onIntentChange}
             isExternalActive={isTextareaFocused}
             compact
+            showHelper
             className="mb-2"
           />
 

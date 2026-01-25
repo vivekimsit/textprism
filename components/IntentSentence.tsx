@@ -32,6 +32,8 @@ interface IntentSentenceProps {
   isExternalActive?: boolean;
   /** Compact text size */
   compact?: boolean;
+  /** Show helper text below sentence */
+  showHelper?: boolean;
   className?: string;
 }
 
@@ -62,6 +64,7 @@ function Token({
 }: TokenProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
   function handleSelect(selectedValue: string) {
@@ -82,13 +85,10 @@ function Token({
     triggerRef.current?.focus();
   }
 
-  // Determine underline style
-  // - Default: none
-  // - Sentence active: dotted
-  // - Token hovered: solid
-  // - Token open: solid
-  const showUnderline = isSentenceActive || isHovered || isOpen;
-  const solidUnderline = isHovered || isOpen;
+  // Show underline when sentence is active OR token is hovered/focused/open
+  const showUnderline = isSentenceActive || isHovered || isFocused || isOpen;
+  // Solid underline when directly interacting with this token
+  const solidUnderline = isHovered || isFocused || isOpen;
 
   return (
     <>
@@ -98,22 +98,24 @@ function Token({
         onKeyDown={handleKeyDown}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => setIsFocused(false)}
         data-intent-token
         className={cn(
           // Base: looks like inline text
           "transition-all duration-150 ease-out",
           // Text color
-          isHovered || isOpen
+          solidUnderline
             ? "text-foreground"
             : isSentenceActive
             ? "text-foreground/90"
             : "text-foreground/80",
-          // Underline: none by default, dotted when active, solid when hovered/open
+          // Underline: dotted when sentence active, solid when token hovered/focused/open
           showUnderline && [
             "underline underline-offset-2",
             solidUnderline
               ? "decoration-foreground/50"
-              : "decoration-dotted decoration-muted-foreground/50",
+              : "decoration-dotted decoration-muted-foreground/40",
           ],
           // Cursor
           "cursor-pointer",
@@ -151,6 +153,7 @@ export function IntentSentence({
   onIntentChange,
   isExternalActive = false,
   compact = false,
+  showHelper = false,
   className,
 }: IntentSentenceProps) {
   const [isHovered, setIsHovered] = useState(false);
@@ -247,6 +250,25 @@ export function IntentSentence({
   const channelSuffix = getChannelSuffix(intent.channel);
   const article = /^[aeiou]/i.test(channelLabel) ? "an" : "a";
   const personaLabel = getPersonaLabel(intent.persona);
+  const toneLabel = getToneLabel(intent.tone).toLowerCase();
+
+  // Natural lowercase audience labels
+  function formatAudience(audience: Audience | null): string {
+    if (audience === null) return "someone";
+    const label = getAudienceLabel(audience);
+    const naturalForms: Record<string, string> = {
+      Team: "the team",
+      Manager: "my manager",
+      DM: "a colleague",
+      Stakeholder: "stakeholders",
+      Client: "a client",
+      Recruiter: "a recruiter",
+      Public: "the public",
+      Network: "my network",
+      Community: "the community",
+    };
+    return naturalForms[label] || label.toLowerCase();
+  }
 
   return (
     <div
@@ -254,7 +276,7 @@ export function IntentSentence({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Sentence: Writing a {channel} message to {audience} — tone: {tone} — as {role} */}
+      {/* Sentence: Writing a {channel} message to {audience} in a {tone} tone, as {role}. */}
       <p
         className={cn(
           "leading-relaxed",
@@ -276,7 +298,7 @@ export function IntentSentence({
           <>
             {" "}to{" "}
             <Token
-              label={getAudienceLabel(intent.audience)}
+              label={formatAudience(intent.audience)}
               value={intent.audience}
               options={audienceOptions}
               onChange={handleAudienceChange}
@@ -286,18 +308,19 @@ export function IntentSentence({
             />
           </>
         ) : null}
-        {" "}— tone:{" "}
+        {" "}in a{" "}
         <Token
-          label={getToneLabel(intent.tone)}
+          label={toneLabel}
           value={intent.tone}
           options={TONE_OPTIONS}
           onChange={handleToneChange}
           isSentenceActive={isSentenceActive}
           ariaLabel="Change tone"
         />
+        {" "}tone
         {personaLabel ? (
           <>
-            {" "}— as{" "}
+            , as{" "}
             <Token
               label={personaLabel}
               value={intent.persona}
@@ -308,7 +331,15 @@ export function IntentSentence({
             />
           </>
         ) : null}
+        .
       </p>
+
+      {/* Helper text */}
+      {showHelper ? (
+        <p className="text-xs text-muted-foreground/50 mt-1">
+          Paste your original text below to generate the meta prompt.
+        </p>
+      ) : null}
 
       {/* Nudge toast */}
       {nudgeState ? (

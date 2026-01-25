@@ -21,7 +21,7 @@ export function IntentPopover({
 }: IntentPopoverProps) {
   const popoverRef = useRef<HTMLDivElement>(null);
 
-  // Position the popover relative to anchor
+  // Position the popover ABOVE the anchor (to not cover textarea)
   const updatePosition = useCallback(() => {
     const anchor = anchorRef.current;
     const popover = popoverRef.current;
@@ -30,9 +30,9 @@ export function IntentPopover({
     const anchorRect = anchor.getBoundingClientRect();
     const popoverRect = popover.getBoundingClientRect();
 
-    // Calculate position below the anchor, aligned to left
+    // Default: position ABOVE the anchor, aligned to left
     let left = anchorRect.left;
-    let top = anchorRect.bottom + 4;
+    let top = anchorRect.top - popoverRect.height - 8; // 8px gap
 
     // Adjust if popover goes off right edge
     if (left + popoverRect.width > window.innerWidth - 16) {
@@ -44,12 +44,13 @@ export function IntentPopover({
       left = 16;
     }
 
-    // Adjust if popover goes off bottom edge
-    if (top + popoverRect.height > window.innerHeight - 16) {
-      // Position above the anchor instead
-      top = anchorRect.top - popoverRect.height - 4;
+    // If popover goes off top edge, position below instead
+    if (top < 16) {
+      top = anchorRect.bottom + 8;
     }
 
+    // Ensure minimum width matches anchor
+    popover.style.minWidth = `${Math.max(anchorRect.width, 140)}px`;
     popover.style.left = `${left}px`;
     popover.style.top = `${top}px`;
   }, [anchorRef]);
@@ -124,11 +125,11 @@ export function IntentPopover({
     <div
       ref={popoverRef}
       className={cn(
-        "fixed z-50 min-w-[140px] max-w-[200px]",
+        "fixed z-50 max-w-[220px]",
         "bg-popover text-popover-foreground",
         "rounded-lg border shadow-lg",
         "animate-in fade-in-0 zoom-in-95 duration-100",
-        className,
+        className
       )}
       role="listbox"
     >

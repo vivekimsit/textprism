@@ -10,6 +10,7 @@ export interface GeneratePromptParams {
 
 // Character limits for message input
 export const MIN_CHARS = 10;
+export const THRESHOLD = 20; // Minimum chars for auto-generation
 export const MAX_CHARS = 2000;
 
 // Channel-specific formatting hints (minimal, not over-engineered)
@@ -51,5 +52,5 @@ Generate the ${channel} message:`;
 
 // Check if we have enough input to generate
 export function canGenerate(message: string): boolean {
-  return message.trim().length >= MIN_CHARS;
+  return message.trim().length >= THRESHOLD;
 }

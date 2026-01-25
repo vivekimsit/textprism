@@ -22,11 +22,16 @@ import {
   isAudienceValidForChannel,
   applyNudge,
 } from "@/lib/intent";
+import { cn } from "@/lib/utils";
 
 interface IntentSentenceBarProps {
   intent: Intent;
   onIntentChange: (intent: Intent) => void;
   className?: string;
+  /** Compact mode for embedding in composer */
+  compact?: boolean;
+  /** When true, show clickable tokens; when false, show plain text */
+  showTokens?: boolean;
 }
 
 interface NudgeState {
@@ -38,6 +43,8 @@ export function IntentSentenceBar({
   intent,
   onIntentChange,
   className,
+  compact = false,
+  showTokens = true,
 }: IntentSentenceBarProps) {
   const [nudgeState, setNudgeState] = useState<NudgeState | null>(null);
 
@@ -79,7 +86,7 @@ export function IntentSentenceBar({
         });
       }
     },
-    [intent, onIntentChange],
+    [intent, onIntentChange]
   );
 
   const handleAudienceChange = useCallback(
@@ -104,7 +111,7 @@ export function IntentSentenceBar({
         });
       }
     },
-    [intent, onIntentChange],
+    [intent, onIntentChange]
   );
 
   const handleToneChange = useCallback(
@@ -114,7 +121,7 @@ export function IntentSentenceBar({
         tone: value as Tone,
       });
     },
-    [intent, onIntentChange],
+    [intent, onIntentChange]
   );
 
   const handlePersonaChange = useCallback(
@@ -124,7 +131,7 @@ export function IntentSentenceBar({
         persona: value as Persona,
       });
     },
-    [intent, onIntentChange],
+    [intent, onIntentChange]
   );
 
   const handleUndo = useCallback(() => {
@@ -141,49 +148,92 @@ export function IntentSentenceBar({
   const audienceOptions = getAudienceOptionsForChannel(intent.channel);
   const showAudienceDropdown = audienceOptions.length > 1;
 
-  // Get article "a" or "an" based on channel
+  // Get channel label and suffix for natural sentence
   const channelLabel = getChannelLabel(intent.channel);
   const channelSuffix = getChannelSuffix(intent.channel);
   const article = /^[aeiou]/i.test(channelLabel) ? "an" : "a";
 
+  // Format audience label for natural reading (lowercase "the team" etc)
+  function formatAudienceForSentence(audience: Audience | null): string {
+    if (audience === null) return "someone";
+    const label = getAudienceLabel(audience);
+    // Make it read naturally: "the team", "my manager", etc
+    const naturalForms: Record<string, string> = {
+      Team: "the team",
+      Manager: "my manager",
+      DM: "a colleague",
+      Stakeholder: "stakeholders",
+      Client: "a client",
+      Recruiter: "a recruiter",
+      Public: "the public",
+      Network: "my network",
+      Community: "the community",
+    };
+    return naturalForms[label] || label.toLowerCase();
+  }
+
+  const baseTextClass = compact
+    ? "text-xs leading-relaxed"
+    : "text-sm leading-relaxed";
+
+  // Plain text version (when tokens hidden)
+  if (!showTokens) {
+    const audienceText = showAudienceDropdown
+      ? ` to ${formatAudienceForSentence(intent.audience)}`
+      : "";
+    const sentenceText = `Writing ${article} ${channelLabel}${channelSuffix ? ` ${channelSuffix}` : ""}${audienceText} (${getToneLabel(intent.tone).toLowerCase()}), as ${getPersonaLabel(intent.persona)}`;
+
+    return (
+      <div className={className}>
+        <p className={cn(baseTextClass, "text-muted-foreground/60")}>
+          {sentenceText}
+        </p>
+      </div>
+    );
+  }
+
+  // Interactive version with tokens (when focused)
   return (
     <div className={className}>
-      {/* Sentence bar */}
-      <p className="text-sm text-muted-foreground leading-relaxed">
+      {/* Natural sentence: Writing a Slack message to the team (direct), as Tech Lead */}
+      <p className={cn(baseTextClass, "text-muted-foreground/80")}>
         Writing {article}{" "}
         <IntentToken
           label={channelLabel}
           value={intent.channel}
           options={CHANNEL_OPTIONS}
           onChange={handleChannelChange}
+          compact={compact}
         />
         {channelSuffix ? ` ${channelSuffix}` : ""}
         {showAudienceDropdown ? (
           <>
-            {" "}
-            to{" "}
+            {" "}to{" "}
             <IntentToken
-              label={getAudienceLabel(intent.audience)}
+              label={formatAudienceForSentence(intent.audience)}
               value={intent.audience}
               options={audienceOptions}
               onChange={handleAudienceChange}
               isWarning={intent.audience === null}
+              compact={compact}
             />
           </>
         ) : null}
-        , tone{" "}
+        {" "}(
         <IntentToken
-          label={getToneLabel(intent.tone)}
+          label={getToneLabel(intent.tone).toLowerCase()}
           value={intent.tone}
           options={TONE_OPTIONS}
           onChange={handleToneChange}
+          compact={compact}
         />
-        , as{" "}
+        ), as{" "}
         <IntentToken
           label={getPersonaLabel(intent.persona)}
           value={intent.persona}
           options={PERSONA_OPTIONS}
           onChange={handlePersonaChange}
+          compact={compact}
         />
       </p>
 

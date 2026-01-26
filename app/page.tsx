@@ -19,10 +19,12 @@ import {
   Sun,
   Moon,
   PanelLeft,
+  Plus,
 } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { toast } from "sonner";
 import { useDebounce } from "@/hooks/use-debounce";
+import { Input } from "@/components/ui/input";
 import {
   usePreferences,
   WHO_I_AM_OPTIONS,
@@ -77,6 +79,7 @@ function HomeContent() {
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [hasEverGenerated, setHasEverGenerated] = useState(false);
+  const [sidebarSearch, setSidebarSearch] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   
   // Track cursor position for layout transition
@@ -108,7 +111,7 @@ function HomeContent() {
 
   // Track first generation to transition from centered to docked layout
   useEffect(() => {
-    if (metaPrompt.length > 0 && !hasEverGenerated) {
+    if (metaPrompt.length > 0 && !hasEverGenerated && inputText.trim().length) {
       // Save cursor position before transitioning layouts
       const textarea = textareaRef.current;
       if (textarea) {
@@ -119,7 +122,7 @@ function HomeContent() {
       }
       setHasEverGenerated(true);
     }
-  }, [metaPrompt, hasEverGenerated]);
+  }, [metaPrompt, hasEverGenerated, inputText]);
 
   // Intent summary for MetaPromptCard sublabel
   const intentSummary = useMemo(() => {
@@ -198,6 +201,40 @@ function HomeContent() {
     textareaRef.current?.focus();
   }
 
+  function handleClearInput() {
+    setInputText("");
+    setSavedCursorPosition(null);
+    setHasEverGenerated(false);
+    setShowSettings(false);
+    setShowAdvancedSettings(false);
+    textareaRef.current?.focus();
+  }
+
+  const normalizedSidebarSearch = sidebarSearch.trim().toLowerCase();
+  const filteredHistory = useMemo(() => {
+    if (!normalizedSidebarSearch) return history;
+    return history.filter((item) => {
+      const channelLabel = getChannelLabelForHistory(item.channel);
+      const audienceLabel = getAudienceLabelForHistory(
+        item.channel,
+        item.audience
+      );
+      const toneLabel = getToneLabelForHistory(item.tone);
+      const haystack = [
+        item.input,
+        item.inputPreview,
+        item.prompt,
+        channelLabel,
+        audienceLabel,
+        toneLabel,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(normalizedSidebarSearch);
+    });
+  }, [history, normalizedSidebarSearch]);
+
   const showSidebar = history.length > 0;
 
   if (!isLoaded) {
@@ -239,18 +276,26 @@ function HomeContent() {
                   sidebarCollapsed ? "flex-col gap-1" : "gap-0.5"
                 )}
               >
-                {!sidebarCollapsed ? (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted/60"
-                    onClick={clearHistory}
-                    title="Clear history"
-                    aria-label="Clear history"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                ) : null}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                  onClick={handleClearInput}
+                  title="New prompt"
+                  aria-label="New prompt"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                  onClick={clearHistory}
+                  title="Clear history"
+                  aria-label="Clear history"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -276,9 +321,18 @@ function HomeContent() {
             {/* Content */}
             {!sidebarCollapsed ? (
               <div className="flex-1 overflow-y-auto px-2 py-2">
-                {history.length > 0 ? (
+                <div className="px-1 pb-2">
+                  <Input
+                    value={sidebarSearch}
+                    onChange={(event) => setSidebarSearch(event.target.value)}
+                    placeholder="Search prompts..."
+                    className="h-8 text-xs"
+                    aria-label="Search prompts"
+                  />
+                </div>
+                {filteredHistory.length > 0 ? (
                   <div className="space-y-1">
-                    {history.map((item) => {
+                    {filteredHistory.map((item) => {
                       const channelLabel = getChannelLabelForHistory(
                         item.channel
                       );
@@ -334,7 +388,9 @@ function HomeContent() {
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground px-1 py-3">
-                    Your prompts will appear here once you start copying.
+                    {history.length > 0
+                      ? "No prompts match your search."
+                      : "Your prompts will appear here once you start copying."}
                   </p>
                 )}
               </div>

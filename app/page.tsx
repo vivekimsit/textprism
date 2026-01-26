@@ -1,6 +1,13 @@
 "use client";
 
-import { Suspense, useMemo, useState, useEffect, useRef } from "react";
+import {
+  Suspense,
+  useMemo,
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+} from "react";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -34,7 +41,7 @@ import {
   COMPANY_SIZE_OPTIONS,
   YEARS_EXPERIENCE_OPTIONS,
 } from "@/hooks/use-preferences";
-import { useHistory, type HistoryItem } from "@/hooks/use-history";
+import { useHistory, type RecentItem, type DraftItem } from "@/hooks/use-history";
 import {
   generatePrompt,
   canGenerate,
@@ -53,8 +60,15 @@ import {
   CHANNEL_OPTIONS,
   TONE_OPTIONS,
 } from "@/lib/intent";
+import { PRESETS, type Preset } from "@/lib/presets";
 
 const FEEDBACK_URL = "https://github.com/vivekimsit/textprism/discussions";
+const PRESET_HIGHLIGHT_KEYS = {
+  channel: true,
+  audience: true,
+  tone: true,
+  persona: true,
+};
 
 function HomeContent() {
   const { setTheme, resolvedTheme } = useTheme();
@@ -69,8 +83,14 @@ function HomeContent() {
     setCompanySize,
     setYearsExperience,
   } = usePreferences();
-  const { history, addToHistory, clearHistory, removeFromHistory } =
-    useHistory();
+  const {
+    recents,
+    drafts,
+    saveDraft,
+    promoteRecent,
+    clearRecents,
+    removeFromRecents,
+  } = useHistory();
 
   // Core state
   const [inputText, setInputText] = useState("");
@@ -79,8 +99,22 @@ function HomeContent() {
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [hasEverGenerated, setHasEverGenerated] = useState(false);
+  const [hasRequestedGeneration, setHasRequestedGeneration] = useState(false);
+  const [generationSeed, setGenerationSeed] = useState("");
   const [sidebarSearch, setSidebarSearch] = useState("");
+  const [activePresetId, setActivePresetId] = useState<string | null>(null);
+  const [extraRules, setExtraRules] = useState<string[]>([]);
+  const [hasUserExpandedMetaPrompt, setHasUserExpandedMetaPrompt] =
+    useState(false);
+  const [draftsExpanded, setDraftsExpanded] = useState(false);
+  const [highlightTokens, setHighlightTokens] = useState<
+    Partial<Record<"channel" | "audience" | "tone" | "persona", boolean>>
+  >({});
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const metaPromptRef = useRef<HTMLDivElement>(null);
+  const presetApplyingRef = useRef(false);
+  const lastExpandedPromotionRef = useRef<string | null>(null);
+  const shouldScrollToMetaPromptRef = useRef(false);
   
   // Track cursor position for layout transition
   const [savedCursorPosition, setSavedCursorPosition] = useState<{ start: number; end: number } | null>(null);
@@ -94,20 +128,40 @@ function HomeContent() {
 
   // Derived state
   const hasEnoughText = inputText.trim().length >= THRESHOLD;
-  const isGenerating = inputText.trim() !== debouncedInputText.trim() && hasEnoughText;
+  const isGenerating =
+    hasRequestedGeneration &&
+    inputText.trim() !== debouncedInputText.trim() &&
+    hasEnoughText;
 
   // Generate meta prompt
+  const generationInput = useMemo(() => {
+    if (!hasRequestedGeneration) return "";
+    const debouncedTrimmed = debouncedInputText.trim();
+    if (debouncedTrimmed.length >= THRESHOLD) {
+      return debouncedTrimmed;
+    }
+    return generationSeed;
+  }, [debouncedInputText, generationSeed, hasRequestedGeneration]);
+
   const metaPrompt = useMemo(() => {
-    if (!canGenerate(debouncedInputText)) return "";
+    if (!canGenerate(generationInput)) return "";
 
     return generatePrompt({
-      message: debouncedInputText.trim(),
+      message: generationInput.trim(),
       channel: intent.channel as Platform,
       audience: intent.audience ?? "team",
       tone: intent.tone,
       whoIAm: getPersonaLabel(intent.persona),
+      extraRules,
     });
-  }, [debouncedInputText, intent]);
+  }, [generationInput, intent, extraRules]);
+
+  const metaPromptStatus = useMemo(() => {
+    if (isGenerating) return "generating";
+    if (hasEnoughText && metaPrompt.length > 0) return "ready";
+    if (inputText.trim().length > 0) return "drafting";
+    return "idle";
+  }, [hasEnoughText, inputText, isGenerating, metaPrompt]);
 
   // Track first generation to transition from centered to docked layout
   useEffect(() => {
@@ -124,6 +178,20 @@ function HomeContent() {
     }
   }, [metaPrompt, hasEverGenerated, inputText]);
 
+  useEffect(() => {
+    if (!hasRequestedGeneration) return;
+    if (metaPromptStatus !== "ready") return;
+    if (!shouldScrollToMetaPromptRef.current) return;
+    const card = metaPromptRef.current;
+    if (!card) return;
+    const rect = card.getBoundingClientRect();
+    const isVisible = rect.top >= 0 && rect.bottom <= window.innerHeight;
+    if (!isVisible) {
+      card.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+    shouldScrollToMetaPromptRef.current = false;
+  }, [hasRequestedGeneration, metaPromptStatus]);
+
   // Intent summary for MetaPromptCard sublabel
   const intentSummary = useMemo(() => {
     const channel = getChannelLabel(intent.channel);
@@ -138,12 +206,15 @@ function HomeContent() {
     return parts.join(" · ");
   }, [intent]);
 
-  const buildPreview = (input: string) => {
-    const trimmed = input.trim();
-    const maxLength = 160;
-    if (trimmed.length <= maxLength) return trimmed;
-    return `${trimmed.slice(0, maxLength)}...`;
-  };
+  const promptContext = useMemo(
+    () => ({
+      channel: intent.channel,
+      audience: intent.audience ?? "team",
+      tone: intent.tone,
+      role: intent.persona,
+    }),
+    [intent]
+  );
 
   const getChannelLabelForHistory = (value: string) =>
     CHANNEL_OPTIONS.find((option) => option.value === value)?.label ?? value;
@@ -155,49 +226,60 @@ function HomeContent() {
   const getToneLabelForHistory = (value: string) =>
     TONE_OPTIONS.find((option) => option.value === value)?.label ?? value;
 
-  function handleReuse(item: HistoryItem) {
-    const input = item.input || item.inputPreview;
-    setInputText(input);
-    // Map history item back to intent (using defaults for persona)
-    setIntent({
-      channel: item.channel as Intent["channel"],
-      audience: item.audience as Intent["audience"],
-      tone: item.tone as Intent["tone"],
-      persona: intent.persona, // Keep current persona
+  const promoteCurrent = useCallback(() => {
+    const trimmedInput = inputText.trim();
+    if (trimmedInput.length < 20) return;
+    if (metaPromptStatus !== "ready") return;
+    promoteRecent({
+      originalText: trimmedInput,
+      context: promptContext,
+      metaPrompt,
+    });
+  }, [inputText, metaPrompt, metaPromptStatus, promoteRecent, promptContext]);
+
+  function handleReuse(item: RecentItem) {
+    setInputText(item.originalText);
+    handleIntentChange({
+      channel: item.context.channel as Intent["channel"],
+      audience: item.context.audience as Intent["audience"],
+      tone: item.context.tone as Intent["tone"],
+      persona: item.context.role as Intent["persona"],
     });
   }
 
-  function handleDuplicate(item: HistoryItem) {
-    const input = item.input || item.inputPreview;
-    addToHistory({
-      channel: item.channel as Platform,
-      audience: item.audience,
-      tone: item.tone,
-      input,
-      inputPreview: buildPreview(input),
-      prompt: item.prompt,
+  function handleRestoreDraft(item: DraftItem) {
+    setInputText(item.originalText);
+    handleIntentChange({
+      channel: item.context.channel as Intent["channel"],
+      audience: item.context.audience as Intent["audience"],
+      tone: item.context.tone as Intent["tone"],
+      persona: item.context.role as Intent["persona"],
+    });
+    setDraftsExpanded(false);
+  }
+
+  function handleDuplicate(item: RecentItem) {
+    promoteRecent({
+      originalText: item.originalText,
+      context: item.context,
+      metaPrompt: item.metaPrompt,
     });
     toast.success("Duplicated!");
   }
 
   function handleCopyCallback() {
-    // Add to history when copy is triggered
-    const trimmedInput = inputText.trim();
-    if (metaPrompt && trimmedInput) {
-      addToHistory({
-        channel: intent.channel,
-        audience: intent.audience ?? "team",
-        tone: intent.tone,
-        input: trimmedInput,
-        inputPreview: buildPreview(trimmedInput),
-        prompt: metaPrompt,
-      });
-    }
+    // Promote when copy is triggered
+    promoteCurrent();
   }
 
   function handleReset() {
     setInputText("");
     setIntent(DEFAULT_INTENT);
+    setActivePresetId(null);
+    setExtraRules([]);
+    setHighlightTokens({});
+    setHasRequestedGeneration(false);
+    setGenerationSeed("");
     textareaRef.current?.focus();
   }
 
@@ -207,23 +289,132 @@ function HomeContent() {
     setHasEverGenerated(false);
     setShowSettings(false);
     setShowAdvancedSettings(false);
+    setActivePresetId(null);
+    setExtraRules([]);
+    setHighlightTokens({});
+    setHasRequestedGeneration(false);
+    setGenerationSeed("");
+    shouldScrollToMetaPromptRef.current = false;
     textareaRef.current?.focus();
   }
 
+  function handleIntentChange(nextIntent: Intent) {
+    if (!presetApplyingRef.current && activePresetId) {
+      setActivePresetId(null);
+      setExtraRules([]);
+    }
+    setIntent(nextIntent);
+  }
+
+  function handleGenerateMetaPrompt() {
+    const trimmedInput = inputText.trim();
+    if (trimmedInput.length < THRESHOLD) return;
+    setGenerationSeed(trimmedInput);
+    setHasRequestedGeneration(true);
+    shouldScrollToMetaPromptRef.current = true;
+  }
+
+  function buildPresetTags(preset: Preset) {
+    const channelLabel = getChannelLabel(preset.context.channel);
+    const audienceLabel = getAudienceLabel(preset.context.audience);
+    const toneLabel = getToneLabel(preset.context.tone);
+    const roleLabel = getPersonaLabel(preset.context.role);
+    return `${channelLabel} · ${audienceLabel} · ${toneLabel} · ${roleLabel}`;
+  }
+
+  function handleApplyPreset(preset: Preset) {
+    presetApplyingRef.current = true;
+    const wasEmpty = inputText.trim().length === 0;
+    setIntent({
+      channel: preset.context.channel,
+      audience: preset.context.audience,
+      tone: preset.context.tone,
+      persona: preset.context.role,
+    });
+    setExtraRules(preset.extraRules ?? []);
+    setActivePresetId(preset.id);
+    setHighlightTokens({ ...PRESET_HIGHLIGHT_KEYS });
+    if (wasEmpty) {
+      setInputText(preset.sentence);
+    }
+    toast.success(`Preset applied: ${buildPresetTags(preset)}`);
+    requestAnimationFrame(() => {
+      textareaRef.current?.focus();
+    });
+  }
+
+  useEffect(() => {
+    if (presetApplyingRef.current) {
+      presetApplyingRef.current = false;
+      return;
+    }
+    if (activePresetId) {
+      setActivePresetId(null);
+      setExtraRules([]);
+    }
+  }, [intent.channel, intent.audience, intent.tone, intent.persona]);
+
+  useEffect(() => {
+    if (!Object.values(highlightTokens).some(Boolean)) return;
+    const timeout = window.setTimeout(() => {
+      setHighlightTokens({});
+    }, 900);
+    return () => window.clearTimeout(timeout);
+  }, [highlightTokens]);
+
+  useEffect(() => {
+    const trimmedInput = debouncedInputText.trim();
+    if (trimmedInput.length < 20) return;
+    if (!hasRequestedGeneration) return;
+    saveDraft({
+      originalText: trimmedInput,
+      context: promptContext,
+      metaPrompt,
+    });
+  }, [debouncedInputText, hasRequestedGeneration, metaPrompt, promptContext, saveDraft]);
+
+  useEffect(() => {
+    if (!hasUserExpandedMetaPrompt) return;
+    if (metaPromptStatus !== "ready") return;
+    const trimmedInput = inputText.trim();
+    if (trimmedInput.length < 20) return;
+    const signature = [
+      promptContext.channel,
+      promptContext.audience,
+      promptContext.tone,
+      promptContext.role,
+      trimmedInput,
+    ].join("|");
+    if (lastExpandedPromotionRef.current === signature) return;
+
+    const timeout = window.setTimeout(() => {
+      if (metaPromptStatus !== "ready") return;
+      promoteCurrent();
+      lastExpandedPromotionRef.current = signature;
+    }, 2000);
+
+    return () => window.clearTimeout(timeout);
+  }, [
+    hasUserExpandedMetaPrompt,
+    inputText,
+    metaPromptStatus,
+    promptContext,
+    promoteCurrent,
+  ]);
+
   const normalizedSidebarSearch = sidebarSearch.trim().toLowerCase();
-  const filteredHistory = useMemo(() => {
-    if (!normalizedSidebarSearch) return history;
-    return history.filter((item) => {
-      const channelLabel = getChannelLabelForHistory(item.channel);
+  const filteredRecents = useMemo(() => {
+    if (!normalizedSidebarSearch) return recents;
+    return recents.filter((item) => {
+      const channelLabel = getChannelLabelForHistory(item.context.channel);
       const audienceLabel = getAudienceLabelForHistory(
-        item.channel,
-        item.audience
+        item.context.channel,
+        item.context.audience
       );
-      const toneLabel = getToneLabelForHistory(item.tone);
+      const toneLabel = getToneLabelForHistory(item.context.tone);
       const haystack = [
-        item.input,
-        item.inputPreview,
-        item.prompt,
+        item.originalText,
+        item.metaPrompt,
         channelLabel,
         audienceLabel,
         toneLabel,
@@ -233,9 +424,14 @@ function HomeContent() {
         .toLowerCase();
       return haystack.includes(normalizedSidebarSearch);
     });
-  }, [history, normalizedSidebarSearch]);
+  }, [recents, normalizedSidebarSearch]);
 
-  const showSidebar = history.length > 0;
+  const showSidebar = recents.length > 0 || drafts.length > 0;
+
+  function handleInputBlur() {
+    if (metaPromptStatus !== "ready") return;
+    promoteCurrent();
+  }
 
   if (!isLoaded) {
     return (
@@ -290,7 +486,7 @@ function HomeContent() {
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted/60"
-                  onClick={clearHistory}
+                  onClick={clearRecents}
                   title="Clear history"
                   aria-label="Clear history"
                 >
@@ -330,17 +526,21 @@ function HomeContent() {
                     aria-label="Search prompts"
                   />
                 </div>
-                {filteredHistory.length > 0 ? (
+                {filteredRecents.length > 0 ? (
                   <div className="space-y-1">
-                    {filteredHistory.map((item) => {
+                    {filteredRecents.map((item) => {
                       const channelLabel = getChannelLabelForHistory(
-                        item.channel
+                        item.context.channel
                       );
                       const audienceLabel = getAudienceLabelForHistory(
-                        item.channel,
-                        item.audience
+                        item.context.channel,
+                        item.context.audience
                       );
-                      const toneLabel = getToneLabelForHistory(item.tone);
+                      const toneLabel = getToneLabelForHistory(
+                        item.context.tone
+                      );
+                      const titleLine =
+                        item.originalText.split(/\r?\n/)[0] || "Untitled";
 
                       return (
                         <div
@@ -350,7 +550,7 @@ function HomeContent() {
                         >
                           <div className="flex-1 min-w-0 space-y-0.5">
                             <p className="text-sm text-foreground line-clamp-2 whitespace-pre-wrap">
-                              {item.input || item.inputPreview}
+                              {titleLine}
                             </p>
                             <p className="text-xs text-muted-foreground truncate">
                               {channelLabel} · {audienceLabel} · {toneLabel}
@@ -375,7 +575,7 @@ function HomeContent() {
                               className="h-6 w-6 text-muted-foreground hover:text-destructive"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                removeFromHistory(item.id);
+                                removeFromRecents(item.id);
                               }}
                               title="Delete"
                             >
@@ -388,11 +588,66 @@ function HomeContent() {
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground px-1 py-3">
-                    {history.length > 0
+                    {recents.length > 0
                       ? "No prompts match your search."
-                      : "Your prompts will appear here once you start copying."}
+                      : "Recent prompts appear here after you use them."}
                   </p>
                 )}
+                {drafts.length > 0 ? (
+                  <div className="mt-3 px-1">
+                    <button
+                      type="button"
+                      onClick={() => setDraftsExpanded((prev) => !prev)}
+                      className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                      aria-expanded={draftsExpanded}
+                    >
+                      {draftsExpanded ? "Hide" : "Show"} drafts (
+                      {Math.min(drafts.length, 5)})
+                    </button>
+                    <div
+                      className={cn(
+                        "mt-2 overflow-hidden transition-[max-height,opacity] duration-200",
+                        draftsExpanded
+                          ? "max-h-96 opacity-100"
+                          : "max-h-0 opacity-0 pointer-events-none"
+                      )}
+                    >
+                      <div className="space-y-1">
+                        {drafts.slice(0, 5).map((item) => {
+                          const channelLabel = getChannelLabelForHistory(
+                            item.context.channel
+                          );
+                          const audienceLabel = getAudienceLabelForHistory(
+                            item.context.channel,
+                            item.context.audience
+                          );
+                          const toneLabel = getToneLabelForHistory(
+                            item.context.tone
+                          );
+                          const titleLine =
+                            item.originalText.split(/\r?\n/)[0] || "Untitled";
+
+                          return (
+                            <div
+                              key={item.id}
+                              className="flex items-start justify-between gap-2 p-2 rounded-lg hover:bg-muted/60 transition-colors cursor-pointer"
+                              onClick={() => handleRestoreDraft(item)}
+                            >
+                              <div className="flex-1 min-w-0 space-y-0.5">
+                                <p className="text-xs text-foreground line-clamp-2 whitespace-pre-wrap">
+                                  {titleLine}
+                                </p>
+                                <p className="text-[11px] text-muted-foreground truncate">
+                                  {channelLabel} · {audienceLabel} · {toneLabel}
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
               </div>
             ) : (
               <div className="flex-1" />
@@ -639,14 +894,17 @@ function HomeContent() {
             ) : null}
 
             {/* Meta Prompt Card - pushed down to connect with composer */}
-            <MetaPromptCard
-              className="mt-auto pt-4"
-              metaPrompt={metaPrompt}
-              isGenerating={isGenerating}
-              hasEnoughText={hasEnoughText}
-              intentSummary={intentSummary}
-              onCopy={handleCopyCallback}
-            />
+            <div ref={metaPromptRef}>
+              <MetaPromptCard
+                className="mt-auto pt-4"
+                metaPrompt={metaPrompt}
+                isGenerating={isGenerating}
+                hasEnoughText={hasEnoughText}
+                intentSummary={intentSummary}
+                onCopy={handleCopyCallback}
+                onExpand={() => setHasUserExpandedMetaPrompt(true)}
+              />
+            </div>
               </div>
             </div>
 
@@ -655,9 +913,14 @@ function HomeContent() {
               ref={textareaRef}
               value={inputText}
               onChange={setInputText}
+              onInputBlur={handleInputBlur}
               threshold={THRESHOLD}
               intent={intent}
-              onIntentChange={setIntent}
+              onIntentChange={handleIntentChange}
+              presets={PRESETS}
+              onApplyPreset={handleApplyPreset}
+              activePresetId={activePresetId}
+              highlightTokens={highlightTokens}
               initialCursorPosition={savedCursorPosition}
               isGenerating={isGenerating}
               hasContent={metaPrompt.length > 0}
@@ -679,12 +942,19 @@ function HomeContent() {
               ref={textareaRef}
               value={inputText}
               onChange={setInputText}
+              onInputBlur={handleInputBlur}
+              onGenerate={handleGenerateMetaPrompt}
               threshold={THRESHOLD}
               intent={intent}
-              onIntentChange={setIntent}
+              onIntentChange={handleIntentChange}
+              presets={PRESETS}
+              onApplyPreset={handleApplyPreset}
+              activePresetId={activePresetId}
+              highlightTokens={highlightTokens}
               centered
               isGenerating={isGenerating}
               hasContent={metaPrompt.length > 0}
+              showGenerateCTA
             />
 
             {/* Theme toggle in corner */}

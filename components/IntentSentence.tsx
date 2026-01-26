@@ -41,6 +41,8 @@ interface IntentSentenceProps {
   isGenerating?: boolean;
   /** Whether meta prompt has content */
   hasContent?: boolean;
+  /** Tokens to highlight briefly (e.g., after preset apply) */
+  highlightTokens?: Partial<Record<"channel" | "audience" | "tone" | "persona", boolean>>;
   className?: string;
 }
 
@@ -58,6 +60,7 @@ interface TokenProps {
   isSentenceActive: boolean;
   isWarning?: boolean;
   ariaLabel: string;
+  highlight?: boolean;
 }
 
 function Token({
@@ -68,6 +71,7 @@ function Token({
   isSentenceActive,
   isWarning = false,
   ariaLabel,
+  highlight = false,
 }: TokenProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -131,7 +135,9 @@ function Token({
           // Focus ring
           "focus:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:rounded-sm",
           // Warning state
-          isWarning && "text-amber-600 dark:text-amber-400 border-amber-400/50"
+          isWarning && "text-amber-600 dark:text-amber-400 border-amber-400/50",
+          // One-time preset highlight
+          highlight && "preset-pulse"
         )}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
@@ -175,6 +181,7 @@ export function IntentSentence({
   threshold = 20,
   isGenerating = false,
   hasContent = false,
+  highlightTokens,
   className,
 }: IntentSentenceProps) {
   const [isHovered, setIsHovered] = useState(false);
@@ -276,7 +283,6 @@ export function IntentSentence({
 
   // Status logic
   const isAboveThreshold = inputLength >= threshold;
-  const remaining = threshold - inputLength;
 
   // Status text for right side of sentence row
   function renderStatus() {
@@ -311,7 +317,7 @@ export function IntentSentence({
     }
     return (
       <p className="text-xs text-muted-foreground/50 mt-1.5">
-        Keep typing — {remaining} chars to generate.
+        Generates after {threshold} chars.
       </p>
     );
   }
@@ -340,6 +346,7 @@ export function IntentSentence({
             onChange={handleChannelChange}
             isSentenceActive={isSentenceActive}
             ariaLabel="Change channel"
+            highlight={Boolean(highlightTokens?.channel)}
           />
           {channelSuffix ? ` ${channelSuffix}` : ""}
           {showAudience ? (
@@ -353,6 +360,7 @@ export function IntentSentence({
                 isSentenceActive={isSentenceActive}
                 isWarning={intent.audience === null}
                 ariaLabel="Change audience"
+                highlight={Boolean(highlightTokens?.audience)}
               />
             </>
           ) : null}
@@ -364,6 +372,7 @@ export function IntentSentence({
             onChange={handleToneChange}
             isSentenceActive={isSentenceActive}
             ariaLabel="Change tone"
+            highlight={Boolean(highlightTokens?.tone)}
           />
           {" "}— as{" "}
           <Token
@@ -373,6 +382,7 @@ export function IntentSentence({
             onChange={handlePersonaChange}
             isSentenceActive={isSentenceActive}
             ariaLabel="Change role"
+            highlight={Boolean(highlightTokens?.persona)}
           />
           .
         </p>

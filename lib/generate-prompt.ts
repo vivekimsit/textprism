@@ -6,6 +6,7 @@ export interface GeneratePromptParams {
   audience: string;
   tone: string;
   whoIAm: string;
+  extraRules?: string[];
 }
 
 // Character limits for message input
@@ -24,7 +25,10 @@ const CHANNEL_HINTS: Record<Platform, string> = {
 };
 
 export function generatePrompt(params: GeneratePromptParams): string {
-  const { message, channel, audience, tone, whoIAm } = params;
+  const { message, channel, audience, tone, whoIAm, extraRules = [] } = params;
+  const extraRulesBlock = extraRules.length
+    ? `\nEXTRA RULES:\n${extraRules.map((rule) => `- ${rule}`).join("\n")}\n`
+    : "";
 
   const prompt = `You are writing a ${channel.toUpperCase()} message.
 
@@ -38,6 +42,7 @@ ${message}
 
 CHANNEL RULES (${channel}):
 ${CHANNEL_HINTS[channel]}
+${extraRulesBlock}
 
 CRITICAL RULES:
 - Sound human, not AI-generated

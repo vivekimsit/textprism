@@ -56,6 +56,21 @@
       transform: rotateY(360deg);
     }
   }
+
+  @keyframes preset-pulse {
+    0% {
+      background-color: oklch(0.97 0 0 / 0);
+      border-color: oklch(0.708 0 0 / 0.2);
+    }
+    40% {
+      background-color: oklch(0.97 0 0 / 0.75);
+      border-color: oklch(0.708 0 0 / 0.55);
+    }
+    100% {
+      background-color: oklch(0.97 0 0 / 0);
+      border-color: oklch(0.708 0 0 / 0.2);
+    }
+  }
 }
 
 :root {
@@ -134,5 +149,9 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+.preset-pulse {
+  animation: preset-pulse 900ms ease-out 1;
 }
 

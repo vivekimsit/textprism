@@ -13,6 +13,7 @@ interface MetaPromptCardProps {
   /** Intent summary for sublabel, e.g. "Slack → Team · Direct · Tech Lead" */
   intentSummary?: string;
   onCopy?: () => void;
+  onExpand?: () => void;
   className?: string;
 }
 
@@ -22,6 +23,7 @@ export function MetaPromptCard({
   hasEnoughText,
   intentSummary,
   onCopy,
+  onExpand,
   className,
 }: MetaPromptCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -54,7 +56,13 @@ export function MetaPromptCard({
   }
 
   function handleToggleExpand() {
-    setIsExpanded((prev) => !prev);
+    setIsExpanded((prev) => {
+      const next = !prev;
+      if (next) {
+        onExpand?.();
+      }
+      return next;
+    });
   }
 
   // === EMPTY STATE: Before any generation ===
@@ -64,16 +72,12 @@ export function MetaPromptCard({
       <div
         className={cn(
           "rounded-2xl border border-dashed border-border/70 bg-muted/5 overflow-hidden",
-          className
+          className,
         )}
       >
         <div className="flex items-center justify-between px-4 py-2.5">
-          <span className="text-sm text-muted-foreground/70">
-            Meta prompt
-          </span>
-          <span className="text-xs text-muted-foreground/50">
-            Appears here
-          </span>
+          <span className="text-sm text-muted-foreground/70">Meta prompt</span>
+          <span className="text-xs text-muted-foreground/50">Appears here</span>
         </div>
       </div>
     );
@@ -85,7 +89,7 @@ export function MetaPromptCard({
       <div
         className={cn(
           "rounded-2xl border border-border/50 bg-card overflow-hidden",
-          className
+          className,
         )}
       >
         <div className="flex items-center justify-between px-4 py-3">
@@ -97,9 +101,7 @@ export function MetaPromptCard({
               <span className="w-1.5 h-1.5 bg-muted-foreground/50 rounded-full animate-pulse [animation-delay:300ms]" />
             </span>
           </span>
-          <span className="text-xs text-muted-foreground/60">
-            Generating…
-          </span>
+          <span className="text-xs text-muted-foreground/60">Generating…</span>
         </div>
       </div>
     );
@@ -111,7 +113,7 @@ export function MetaPromptCard({
       className={cn(
         "rounded-2xl border bg-card overflow-hidden flex flex-col",
         "animate-in fade-in slide-in-from-top-2 duration-200",
-        className
+        className,
       )}
     >
       {/* Header */}
@@ -145,9 +147,9 @@ export function MetaPromptCard({
             disabled={!isReady}
             className={cn(
               "h-7 px-3 text-xs font-medium",
-              isReady 
-                ? "bg-foreground text-background hover:bg-foreground/90" 
-                : "text-muted-foreground"
+              isReady
+                ? "bg-foreground text-background hover:bg-foreground/90"
+                : "text-muted-foreground",
             )}
             title={isReady ? "Copy meta prompt" : "Updating…"}
           >
@@ -185,7 +187,7 @@ export function MetaPromptCard({
       <div
         className={cn(
           "overflow-y-auto transition-[max-height] duration-200 ease-out",
-          isExpanded ? "max-h-[320px]" : "max-h-[72px]"
+          isExpanded ? "max-h-[320px]" : "max-h-[72px]",
         )}
       >
         <div className="p-4">
@@ -205,9 +207,7 @@ export function MetaPromptCard({
         <span
           className={cn(
             "text-xs",
-            isGenerating
-              ? "text-muted-foreground"
-              : "text-muted-foreground/70"
+            isGenerating ? "text-muted-foreground" : "text-muted-foreground/70",
           )}
         >
           {isGenerating ? "Updating…" : "Prompt ready to copy"}

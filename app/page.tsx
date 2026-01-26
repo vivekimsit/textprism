@@ -52,6 +52,8 @@ import {
   TONE_OPTIONS,
 } from "@/lib/intent";
 
+const FEEDBACK_URL = "https://github.com/vivekimsit/textprism/discussions";
+
 function HomeContent() {
   const { setTheme, resolvedTheme } = useTheme();
   const [isMounted, setIsMounted] = useState(false);
@@ -358,7 +360,16 @@ function HomeContent() {
                 className="text-foreground"
                 onClick={handleReset}
               />
-              <div className="flex gap-2">
+              <div className="flex items-center gap-3">
+                <a
+                  href={FEEDBACK_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label="Leave feedback"
+                >
+                  Feedback
+                </a>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -621,7 +632,16 @@ function HomeContent() {
             />
 
             {/* Theme toggle in corner */}
-            <div className="fixed top-4 right-4 flex gap-2">
+            <div className="fixed top-4 right-4 flex items-center gap-3">
+              <a
+                href={FEEDBACK_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                aria-label="Leave feedback"
+              >
+                Feedback
+              </a>
               <Button
                 variant="ghost"
                 size="sm"

@@ -294,29 +294,6 @@ export function IntentSentence({
   // Status logic
   const isAboveThreshold = inputLength >= threshold;
 
-  // Status text for right side of sentence row
-  function renderStatus() {
-    if (!isAboveThreshold) return null;
-    if (isGenerating) {
-      return (
-        <span className="text-xs text-muted-foreground/60 flex items-center gap-1.5">
-          <span className="inline-flex gap-0.5">
-            <span className="w-1 h-1 bg-muted-foreground/50 rounded-full animate-pulse" />
-            <span className="w-1 h-1 bg-muted-foreground/50 rounded-full animate-pulse [animation-delay:150ms]" />
-            <span className="w-1 h-1 bg-muted-foreground/50 rounded-full animate-pulse [animation-delay:300ms]" />
-          </span>
-          Updating…
-        </span>
-      );
-    }
-    if (hasContent) {
-      return (
-        <span className="text-xs text-muted-foreground/50">Up to date</span>
-      );
-    }
-    return null;
-  }
-
   // Helper text logic
   function renderHelper() {
     if (isAboveThreshold) return null;
@@ -399,9 +376,6 @@ export function IntentSentence({
           />
           .
         </p>
-
-        {/* Status on right side */}
-        {renderStatus()}
       </div>
 
       {/* Helper text below sentence */}

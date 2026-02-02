@@ -155,8 +155,8 @@ export function MetaPromptCard({
       )}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b bg-muted/20">
-        <div className="flex flex-col gap-0.5">
+      <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/20">
+        <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-foreground">
               Meta prompt
@@ -176,7 +176,7 @@ export function MetaPromptCard({
             </span>
           ) : null}
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
           {/* Send to AI button */}
           {onSendToAi && (
             <Button
@@ -247,7 +247,7 @@ export function MetaPromptCard({
 
       {/* Channel Rules Toggle Section - hidden when AI mode is active */}
       {!hideChannelRules && channel && enabledRuleIds && onRuleToggle ? (
-        <div className="px-4 py-3 border-b bg-muted/10">
+        <div className="px-4 py-2.5 border-b bg-muted/10">
           <ChannelRulesToggle
             channel={channel}
             enabledRuleIds={enabledRuleIds}

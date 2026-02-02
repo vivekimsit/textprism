@@ -15,6 +15,7 @@ interface SplitGenerateButtonProps {
   onGenerateMetaPrompt: () => void;
   disabled?: boolean;
   className?: string;
+  isRegenerate?: boolean;
 }
 
 export function SplitGenerateButton({
@@ -22,6 +23,7 @@ export function SplitGenerateButton({
   onGenerateMetaPrompt,
   disabled = false,
   className,
+  isRegenerate = false,
 }: SplitGenerateButtonProps) {
   const [open, setOpen] = useState(false);
 
@@ -40,7 +42,7 @@ export function SplitGenerateButton({
         size="default"
       >
         <Sparkles className="h-4 w-4 mr-2" />
-        Generate with AI
+        {isRegenerate ? "Regenerate with AI" : "Generate with AI"}
       </Button>
 
       {/* Dropdown trigger */}

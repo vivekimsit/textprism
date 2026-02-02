@@ -386,6 +386,9 @@ function HomeContent() {
       tone: item.context.tone as Intent["tone"],
       persona: item.context.role as Intent["persona"],
     });
+    // Reset AI generation state to avoid showing "Regenerate" for a fresh selection
+    setLastAiGenerationInput("");
+    aiGeneration.reset();
   }
 
   function handleRestoreDraft(item: DraftItem) {
@@ -397,6 +400,9 @@ function HomeContent() {
       persona: item.context.role as Intent["persona"],
     });
     setDraftsExpanded(false);
+    // Reset AI generation state to avoid showing "Regenerate" for a fresh selection
+    setLastAiGenerationInput("");
+    aiGeneration.reset();
   }
 
   function handleDuplicate(item: RecentItem) {
@@ -863,54 +869,56 @@ function HomeContent() {
             {/* Scrollable content area - pb accounts for sticky dock height */}
             <div className="flex-1 flex flex-col px-4 pt-6 pb-[100px]">
               <div className="w-full max-w-2xl mx-auto flex-1 flex flex-col">
-                {/* Top Bar - logo anchored left, controls right */}
-                <div className="flex items-center justify-between">
+                {/* Top Bar - logo anchored left */}
+                <div className="flex items-center pt-8 pl-4 mb-12">
                   <Logo className="text-foreground" onClick={handleReset} />
-                  <div className="flex items-center gap-3">
-                    <a
-                      href={FEEDBACK_URL}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-                      aria-label="Leave feedback"
-                    >
-                      Feedback
-                    </a>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() =>
-                        setTheme(resolvedTheme === "dark" ? "light" : "dark")
-                      }
-                      className="h-8 px-2"
-                      title="Toggle dark mode"
-                      aria-label="Toggle dark mode"
-                      disabled={!isMounted}
-                    >
-                      {isMounted ? (
-                        resolvedTheme === "dark" ? (
-                          <Sun className="h-4 w-4" />
-                        ) : (
-                          <Moon className="h-4 w-4" />
-                        )
-                      ) : null}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setShowSettings(!showSettings)}
-                      className={cn("h-8 px-2", showSettings ? "bg-muted" : "")}
-                    >
-                      <Settings className="h-4 w-4" />
-                    </Button>
-                  </div>
                 </div>
 
-                {/* Settings Panel */}
+                {/* Controls fixed in top-right corner - same position as centered layout */}
+                <div className="fixed top-4 right-4 flex items-center gap-3">
+                  <a
+                    href={FEEDBACK_URL}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                    aria-label="Leave feedback"
+                  >
+                    Feedback
+                  </a>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() =>
+                      setTheme(resolvedTheme === "dark" ? "light" : "dark")
+                    }
+                    className="h-8 px-2"
+                    title="Toggle dark mode"
+                    aria-label="Toggle dark mode"
+                    disabled={!isMounted}
+                  >
+                    {isMounted ? (
+                      resolvedTheme === "dark" ? (
+                        <Sun className="h-4 w-4" />
+                      ) : (
+                        <Moon className="h-4 w-4" />
+                      )
+                    ) : null}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowSettings(!showSettings)}
+                    className={cn("h-8 px-2", showSettings ? "bg-muted" : "")}
+                  >
+                    <Settings className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                {/* Settings Panel - Fixed position for docked layout */}
                 {showSettings ? (
-                  <div className="p-4 border rounded-2xl bg-card space-y-4 animate-in fade-in slide-in-from-top-2 duration-200 mt-4">
+                  <div className="fixed top-16 right-4 w-96 max-h-[80vh] overflow-y-auto p-4 border rounded-2xl bg-card shadow-lg space-y-4 animate-in fade-in slide-in-from-top-2 duration-200 z-50">
                     <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium">Defaults</p>
+                      <p className="text-sm font-medium">Settings</p>
                       <Button
                         variant="ghost"
                         size="icon"
@@ -1235,6 +1243,7 @@ function HomeContent() {
               hasApiKey={preferences.openaiApiKey.length > 0}
               onGenerateWithAi={handleGenerateWithAi}
               showDockedGenerateCTA={isAiModeActive}
+              isRegenerate={isAiResponseStale}
               showChannelRules={isAiModeActive}
               channel={intent.channel as Platform}
               enabledRuleIds={currentEnabledRules}
@@ -1245,7 +1254,7 @@ function HomeContent() {
           // === CENTERED LAYOUT: Initial state before any generation ===
           <div className="flex-1 flex flex-col items-center justify-center px-4 py-8">
             {/* Logo centered above */}
-            <div className="mb-8">
+            <div className="mb-8 pt-12">
               <Logo className="text-foreground" onClick={handleReset} />
             </div>
 
@@ -1269,6 +1278,7 @@ function HomeContent() {
               showGenerateCTA
               hasApiKey={preferences.openaiApiKey.length > 0}
               onGenerateWithAi={handleGenerateWithAi}
+              isRegenerate={isAiResponseStale}
             />
 
             {/* Theme toggle and settings in corner */}

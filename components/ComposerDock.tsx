@@ -46,6 +46,8 @@ interface ComposerDockProps {
   onGenerateWithAi?: () => void;
   /** Show generate CTA in docked mode (e.g., when response is stale) */
   showDockedGenerateCTA?: boolean;
+  /** Whether this is a regeneration (text changed after previous generation) */
+  isRegenerate?: boolean;
   /** Channel rules props - shown in docked mode when AI mode is active */
   showChannelRules?: boolean;
   channel?: Platform;
@@ -76,6 +78,7 @@ export const ComposerDock = forwardRef<HTMLTextAreaElement, ComposerDockProps>(
       hasApiKey = false,
       onGenerateWithAi,
       showDockedGenerateCTA = false,
+      isRegenerate = false,
       showChannelRules = false,
       channel,
       enabledRuleIds,
@@ -325,6 +328,7 @@ export const ComposerDock = forwardRef<HTMLTextAreaElement, ComposerDockProps>(
                     onGenerateWithAi={onGenerateWithAi}
                     onGenerateMetaPrompt={onGenerate || (() => {})}
                     disabled={isGenerateDisabled}
+                    isRegenerate={isRegenerate}
                   />
                 ) : (
                   <Button
@@ -332,7 +336,9 @@ export const ComposerDock = forwardRef<HTMLTextAreaElement, ComposerDockProps>(
                     onClick={onGenerate}
                     disabled={isGenerateDisabled}
                   >
-                    Generate meta prompt
+                    {isRegenerate
+                      ? "Regenerate meta prompt"
+                      : "Generate meta prompt"}
                   </Button>
                 )}
                 {showGenerateHint ? (
@@ -419,6 +425,7 @@ export const ComposerDock = forwardRef<HTMLTextAreaElement, ComposerDockProps>(
                         onGenerateWithAi={onGenerateWithAi}
                         onGenerateMetaPrompt={onGenerate || (() => {})}
                         disabled={isGenerateDisabled}
+                        isRegenerate={isRegenerate}
                       />
                     ) : (
                       <Button
@@ -427,7 +434,7 @@ export const ComposerDock = forwardRef<HTMLTextAreaElement, ComposerDockProps>(
                         disabled={isGenerateDisabled}
                         size="sm"
                       >
-                        Regenerate
+                        {isRegenerate ? "Regenerate" : "Generate"}
                       </Button>
                     )}
                   </div>

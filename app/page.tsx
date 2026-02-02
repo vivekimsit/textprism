@@ -129,6 +129,7 @@ function HomeContent() {
   const presetApplyingRef = useRef(false);
   const lastExpandedPromotionRef = useRef<string | null>(null);
   const shouldScrollToMetaPromptRef = useRef(false);
+  const shouldAutoSendToAiRef = useRef(false);
   
   // Track cursor position for layout transition
   const [savedCursorPosition, setSavedCursorPosition] = useState<{ start: number; end: number } | null>(null);
@@ -267,6 +268,33 @@ function HomeContent() {
     }
     shouldScrollToMetaPromptRef.current = false;
   }, [hasRequestedGeneration, metaPromptStatus]);
+
+  // Auto-send to AI when meta prompt is ready (for direct AI generation flow)
+  useEffect(() => {
+    if (!shouldAutoSendToAiRef.current) return;
+    if (metaPromptStatus !== "ready") return;
+    if (!metaPrompt || !preferences.openaiApiKey) return;
+    
+    // Reset the flag
+    shouldAutoSendToAiRef.current = false;
+    
+    // Reset previous AI response
+    aiGeneration.reset();
+    
+    // Collapse meta prompt card to focus on AI response
+    setForceCollapseMetaPrompt(true);
+    
+    // Build messages array for AI
+    const messages: Message[] = [
+      {
+        role: "user",
+        content: metaPrompt,
+      },
+    ];
+    
+    // Generate AI response
+    aiGeneration.generate(messages);
+  }, [metaPromptStatus, metaPrompt, preferences.openaiApiKey, aiGeneration]);
 
   // Intent summary for MetaPromptCard sublabel
   const intentSummary = useMemo(() => {
@@ -414,6 +442,23 @@ function HomeContent() {
     
     // Generate AI response
     aiGeneration.generate(messages);
+  }
+
+  function handleGenerateWithAi() {
+    const trimmedInput = inputText.trim();
+    if (trimmedInput.length < THRESHOLD) return;
+    if (!preferences.openaiApiKey) return;
+    
+    // First, generate the meta prompt
+    setGenerationSeed(trimmedInput);
+    setHasRequestedGeneration(true);
+    
+    // Reset previous AI response
+    aiGeneration.reset();
+    
+    // Mark that we want to auto-send to AI once meta prompt is ready
+    // We'll use a ref to track this intent
+    shouldAutoSendToAiRef.current = true;
   }
 
   function handleApiKeyClear() {
@@ -1162,6 +1207,8 @@ function HomeContent() {
               isGenerating={isGenerating}
               hasContent={metaPrompt.length > 0}
               showGenerateCTA
+              hasApiKey={preferences.openaiApiKey.length > 0}
+              onGenerateWithAi={handleGenerateWithAi}
             />
 
             {/* Theme toggle and settings in corner */}

@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { IntentSentence } from "./IntentSentence";
+import { SplitGenerateButton } from "./SplitGenerateButton";
 import {
   type Intent,
   getAudienceLabel,
@@ -37,6 +38,10 @@ interface ComposerDockProps {
   /** Whether meta prompt has content */
   hasContent?: boolean;
   showGenerateCTA?: boolean;
+  /** Whether user has an OpenAI API key configured */
+  hasApiKey?: boolean;
+  /** Callback for direct AI generation (bypasses manual meta prompt step) */
+  onGenerateWithAi?: () => void;
   className?: string;
 }
 
@@ -59,6 +64,8 @@ export const ComposerDock = forwardRef<HTMLTextAreaElement, ComposerDockProps>(
       isGenerating = false,
       hasContent = false,
       showGenerateCTA = false,
+      hasApiKey = false,
+      onGenerateWithAi,
       className,
     },
     ref,
@@ -299,13 +306,21 @@ export const ComposerDock = forwardRef<HTMLTextAreaElement, ComposerDockProps>(
 
             {showGenerateCTA ? (
               <div className="absolute bottom-3 right-3 flex flex-col items-end gap-1">
-                <Button
-                  type="button"
-                  onClick={onGenerate}
-                  disabled={isGenerateDisabled}
-                >
-                  Generate meta prompt
-                </Button>
+                {hasApiKey && onGenerateWithAi ? (
+                  <SplitGenerateButton
+                    onGenerateWithAi={onGenerateWithAi}
+                    onGenerateMetaPrompt={onGenerate || (() => {})}
+                    disabled={isGenerateDisabled}
+                  />
+                ) : (
+                  <Button
+                    type="button"
+                    onClick={onGenerate}
+                    disabled={isGenerateDisabled}
+                  >
+                    Generate meta prompt
+                  </Button>
+                )}
                 {showGenerateHint ? (
                   <span className="text-[11px] text-muted-foreground/70">
                     {threshold - trimmedLength} more character{threshold - trimmedLength === 1 ? '' : 's'} needed

@@ -53,8 +53,12 @@ export function useAiGeneration({
         });
 
         if (!res.ok) {
-          const errorData = await res.json().catch(() => ({ error: "Unknown error" }));
-          throw new Error(errorData.error || `HTTP error! status: ${res.status}`);
+          const errorData = await res
+            .json()
+            .catch(() => ({ error: "Unknown error" }));
+          throw new Error(
+            errorData.error || `HTTP error! status: ${res.status}`
+          );
         }
 
         // Handle streaming response
@@ -76,7 +80,7 @@ export function useAiGeneration({
 
           // Decode the chunk
           const chunk = decoder.decode(value, { stream: true });
-          
+
           // Check for our custom error format first
           if (chunk.includes("__ERROR__:")) {
             const errorMatch = chunk.match(/__ERROR__:(.+)$/);
@@ -91,7 +95,7 @@ export function useAiGeneration({
               }
             }
           }
-          
+
           // Plain text stream - just accumulate
           accumulatedText += chunk;
           setResponse(accumulatedText);
@@ -115,7 +119,8 @@ export function useAiGeneration({
 
         setIsLoading(false);
       } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : "Failed to generate response";
+        const errorMessage =
+          err instanceof Error ? err.message : "Failed to generate response";
         setError(errorMessage);
         setResponse(""); // Clear any partial response on error
         setIsLoading(false);

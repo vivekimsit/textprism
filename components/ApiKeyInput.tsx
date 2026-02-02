@@ -19,7 +19,12 @@ function isValidKeyFormat(key: string): boolean {
   return /^sk-[a-zA-Z0-9-_]{32,}$/.test(key);
 }
 
-export function ApiKeyInput({ value, onChange, onClear, className }: ApiKeyInputProps) {
+export function ApiKeyInput({
+  value,
+  onChange,
+  onClear,
+  className,
+}: ApiKeyInputProps) {
   const [showKey, setShowKey] = useState(false);
   const hasKey = value.length > 0;
   const isValid = hasKey && isValidKeyFormat(value);
@@ -41,7 +46,9 @@ export function ApiKeyInput({ value, onChange, onClear, className }: ApiKeyInput
               placeholder="sk-..."
               className={cn(
                 "pr-10",
-                hasKey && !isValid && "border-destructive focus-visible:ring-destructive"
+                hasKey &&
+                  !isValid &&
+                  "border-destructive focus-visible:ring-destructive"
               )}
               aria-label="OpenAI API Key"
             />
@@ -77,7 +84,8 @@ export function ApiKeyInput({ value, onChange, onClear, className }: ApiKeyInput
         </div>
         {hasKey && !isValid && (
           <p className="text-xs text-destructive">
-            Invalid key format. Should start with sk- followed by 32+ characters.
+            Invalid key format. Should start with sk- followed by 32+
+            characters.
           </p>
         )}
       </div>
@@ -87,9 +95,13 @@ export function ApiKeyInput({ value, onChange, onClear, className }: ApiKeyInput
         <div className="flex items-start gap-2">
           <Key className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
           <div className="space-y-1.5 text-xs text-muted-foreground">
-            <p className="font-medium text-foreground">Your API key stays private</p>
+            <p className="font-medium text-foreground">
+              Your API key stays private
+            </p>
             <ul className="space-y-1 list-disc list-inside">
-              <li>Stored only in your browser&apos;s memory (cleared on refresh)</li>
+              <li>
+                Stored only in your browser&apos;s memory (cleared on refresh)
+              </li>
               <li>Sent directly to OpenAI via our secure proxy</li>
               <li>Never logged, stored, or visible to us</li>
             </ul>

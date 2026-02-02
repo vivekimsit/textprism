@@ -69,42 +69,42 @@ export function usePreferences() {
     (value: string) => {
       updatePreferences({ whoIAm: value });
     },
-    [updatePreferences],
+    [updatePreferences]
   );
 
   const setDefaultTone = useCallback(
     (value: string) => {
       updatePreferences({ defaultTone: value });
     },
-    [updatePreferences],
+    [updatePreferences]
   );
 
   const setCountry = useCallback(
     (value: string) => {
       updatePreferences({ country: value });
     },
-    [updatePreferences],
+    [updatePreferences]
   );
 
   const setJobCategory = useCallback(
     (value: string) => {
       updatePreferences({ jobCategory: value });
     },
-    [updatePreferences],
+    [updatePreferences]
   );
 
   const setCompanySize = useCallback(
     (value: string) => {
       updatePreferences({ companySize: value });
     },
-    [updatePreferences],
+    [updatePreferences]
   );
 
   const setYearsExperience = useCallback(
     (value: string) => {
       updatePreferences({ yearsExperience: value });
     },
-    [updatePreferences],
+    [updatePreferences]
   );
 
   const setChannelRules = useCallback(
@@ -117,28 +117,28 @@ export function usePreferences() {
         },
       }));
     },
-    [],
+    []
   );
 
   const getChannelRules = useCallback(
     (channel: string): string[] | undefined => {
       return preferences.channelRulesEnabled[channel];
     },
-    [preferences.channelRulesEnabled],
+    [preferences.channelRulesEnabled]
   );
 
   const setOpenaiApiKey = useCallback(
     (value: string) => {
       updatePreferences({ openaiApiKey: value });
     },
-    [updatePreferences],
+    [updatePreferences]
   );
 
   const setSelectedModel = useCallback(
     (value: string) => {
       updatePreferences({ selectedModel: value });
     },
-    [updatePreferences],
+    [updatePreferences]
   );
 
   const clearOpenaiApiKey = useCallback(() => {

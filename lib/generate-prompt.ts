@@ -7,6 +7,8 @@ export interface GeneratePromptParams {
   tone: string;
   whoIAm: string;
   extraRules?: string[];
+  /** Custom channel rules text (built from enabled toggle rules) */
+  channelRulesText?: string;
 }
 
 // Character limits for message input
@@ -14,8 +16,8 @@ export const MIN_CHARS = 10;
 export const THRESHOLD = 20; // Minimum chars for auto-generation
 export const MAX_CHARS = 2000;
 
-// Channel-specific formatting hints (minimal, not over-engineered)
-const CHANNEL_HINTS: Record<Platform, string> = {
+// Fallback channel-specific formatting hints (used when no custom rules provided)
+export const DEFAULT_CHANNEL_HINTS: Record<Platform, string> = {
   slack: "Use markdown, bullets for lists, keep it scannable",
   email: "Include a clear subject line, professional structure",
   linkedin:
@@ -25,10 +27,22 @@ const CHANNEL_HINTS: Record<Platform, string> = {
 };
 
 export function generatePrompt(params: GeneratePromptParams): string {
-  const { message, channel, audience, tone, whoIAm, extraRules = [] } = params;
+  const {
+    message,
+    channel,
+    audience,
+    tone,
+    whoIAm,
+    extraRules = [],
+    channelRulesText,
+  } = params;
+
   const extraRulesBlock = extraRules.length
     ? `\nEXTRA RULES:\n${extraRules.map((rule) => `- ${rule}`).join("\n")}\n`
     : "";
+
+  // Use custom channel rules if provided, otherwise fall back to defaults
+  const rulesText = channelRulesText || DEFAULT_CHANNEL_HINTS[channel];
 
   const prompt = `You are writing a ${channel.toUpperCase()} message.
 
@@ -41,7 +55,7 @@ MESSAGE TO TRANSFORM:
 ${message}
 
 CHANNEL RULES (${channel}):
-${CHANNEL_HINTS[channel]}
+${rulesText}
 ${extraRulesBlock}
 
 CRITICAL RULES:

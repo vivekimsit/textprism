@@ -5,6 +5,8 @@ import { Copy, Check, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { ChannelRulesToggle } from "./ChannelRulesToggle";
+import type { Platform } from "@/lib/generate-prompt";
 
 interface MetaPromptCardProps {
   metaPrompt: string;
@@ -12,6 +14,12 @@ interface MetaPromptCardProps {
   hasEnoughText: boolean;
   /** Intent summary for sublabel, e.g. "Slack → Team · Direct · Tech Lead" */
   intentSummary?: string;
+  /** Current channel for channel rules */
+  channel?: Platform;
+  /** Currently enabled rule IDs for the channel */
+  enabledRuleIds?: string[];
+  /** Callback when a rule is toggled */
+  onRuleToggle?: (ruleId: string, enabled: boolean) => void;
   onCopy?: () => void;
   onExpand?: () => void;
   className?: string;
@@ -22,6 +30,9 @@ export function MetaPromptCard({
   isGenerating,
   hasEnoughText,
   intentSummary,
+  channel,
+  enabledRuleIds,
+  onRuleToggle,
   onCopy,
   onExpand,
   className,
@@ -182,6 +193,17 @@ export function MetaPromptCard({
           </Button>
         </div>
       </div>
+
+      {/* Channel Rules Toggle Section */}
+      {channel && enabledRuleIds && onRuleToggle ? (
+        <div className="px-4 py-3 border-b bg-muted/10">
+          <ChannelRulesToggle
+            channel={channel}
+            enabledRuleIds={enabledRuleIds}
+            onToggle={onRuleToggle}
+          />
+        </div>
+      ) : null}
 
       {/* Body - scrollable area */}
       <div

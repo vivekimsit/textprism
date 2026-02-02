@@ -11,6 +11,9 @@ export interface UserPreferences {
   jobCategory: string;
   companySize: string;
   yearsExperience: string;
+  // Channel rules: maps channel name to array of enabled rule IDs
+  // If undefined/empty for a channel, use defaults from CHANNEL_RULES
+  channelRulesEnabled: Record<string, string[]>;
 }
 
 const DEFAULT_PREFERENCES: UserPreferences = {
@@ -20,6 +23,7 @@ const DEFAULT_PREFERENCES: UserPreferences = {
   jobCategory: "",
   companySize: "",
   yearsExperience: "",
+  channelRulesEnabled: {},
 };
 
 export function usePreferences() {
@@ -98,6 +102,26 @@ export function usePreferences() {
     [updatePreferences],
   );
 
+  const setChannelRules = useCallback(
+    (channel: string, enabledRuleIds: string[]) => {
+      setPreferences((prev) => ({
+        ...prev,
+        channelRulesEnabled: {
+          ...prev.channelRulesEnabled,
+          [channel]: enabledRuleIds,
+        },
+      }));
+    },
+    [],
+  );
+
+  const getChannelRules = useCallback(
+    (channel: string): string[] | undefined => {
+      return preferences.channelRulesEnabled[channel];
+    },
+    [preferences.channelRulesEnabled],
+  );
+
   return {
     preferences,
     isLoaded,
@@ -107,6 +131,8 @@ export function usePreferences() {
     setJobCategory,
     setCompanySize,
     setYearsExperience,
+    setChannelRules,
+    getChannelRules,
     updatePreferences,
   };
 }

@@ -48,6 +48,11 @@ import {
   THRESHOLD,
   type Platform,
 } from "@/lib/generate-prompt";
+import {
+  CHANNEL_RULES,
+  getDefaultEnabledRules,
+  buildChannelRulesText,
+} from "@/lib/channel-rules";
 import { MetaPromptCard } from "@/components/MetaPromptCard";
 import { ComposerDock } from "@/components/ComposerDock";
 import {
@@ -82,6 +87,7 @@ function HomeContent() {
     setJobCategory,
     setCompanySize,
     setYearsExperience,
+    setChannelRules,
   } = usePreferences();
   const {
     recents,
@@ -104,6 +110,8 @@ function HomeContent() {
   const [sidebarSearch, setSidebarSearch] = useState("");
   const [activePresetId, setActivePresetId] = useState<string | null>(null);
   const [extraRules, setExtraRules] = useState<string[]>([]);
+  // Channel rules: track enabled rule IDs per channel (session state, synced with preferences)
+  const [channelRulesState, setChannelRulesState] = useState<Record<string, string[]>>({});
   const [hasUserExpandedMetaPrompt, setHasUserExpandedMetaPrompt] =
     useState(false);
   const [draftsExpanded, setDraftsExpanded] = useState(false);
@@ -122,6 +130,58 @@ function HomeContent() {
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  // Initialize channel rules from preferences when loaded
+  useEffect(() => {
+    if (isLoaded && Object.keys(channelRulesState).length === 0) {
+      setChannelRulesState(preferences.channelRulesEnabled);
+    }
+  }, [isLoaded, preferences.channelRulesEnabled, channelRulesState]);
+
+  // Get enabled rules for the current channel (from state, preferences, or defaults)
+  const currentEnabledRules = useMemo(() => {
+    const channel = intent.channel as Platform;
+    // First check session state (key exists = user has made a choice, even if empty)
+    if (channel in channelRulesState) {
+      return channelRulesState[channel];
+    }
+    // Then check preferences (key exists = user has saved a preference, even if empty)
+    if (channel in preferences.channelRulesEnabled) {
+      return preferences.channelRulesEnabled[channel];
+    }
+    // Fall back to defaults only if no explicit choice has been made
+    return getDefaultEnabledRules(channel);
+  }, [intent.channel, channelRulesState, preferences.channelRulesEnabled]);
+
+  // Build channel rules text from enabled rules
+  const channelRulesText = useMemo(() => {
+    return buildChannelRulesText(intent.channel as Platform, currentEnabledRules);
+  }, [intent.channel, currentEnabledRules]);
+
+  // Handle toggling a channel rule
+  const handleRuleToggle = useCallback(
+    (ruleId: string, enabled: boolean) => {
+      const channel = intent.channel;
+      const currentRules = currentEnabledRules;
+      
+      let newRules: string[];
+      if (enabled) {
+        newRules = [...currentRules, ruleId];
+      } else {
+        newRules = currentRules.filter((id) => id !== ruleId);
+      }
+      
+      // Update session state
+      setChannelRulesState((prev) => ({
+        ...prev,
+        [channel]: newRules,
+      }));
+      
+      // Persist to preferences
+      setChannelRules(channel, newRules);
+    },
+    [intent.channel, currentEnabledRules, setChannelRules]
+  );
 
   // Debounce input with 600ms delay for meta prompt generation
   const debouncedInputText = useDebounce(inputText, 600);
@@ -153,8 +213,9 @@ function HomeContent() {
       tone: intent.tone,
       whoIAm: getPersonaLabel(intent.persona),
       extraRules,
+      channelRulesText,
     });
-  }, [generationInput, intent, extraRules]);
+  }, [generationInput, intent, extraRules, channelRulesText]);
 
   const metaPromptStatus = useMemo(() => {
     if (isGenerating) return "generating";
@@ -901,6 +962,9 @@ function HomeContent() {
                 isGenerating={isGenerating}
                 hasEnoughText={hasEnoughText}
                 intentSummary={intentSummary}
+                channel={intent.channel as Platform}
+                enabledRuleIds={currentEnabledRules}
+                onRuleToggle={handleRuleToggle}
                 onCopy={handleCopyCallback}
                 onExpand={() => setHasUserExpandedMetaPrompt(true)}
               />

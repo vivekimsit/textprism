@@ -4,13 +4,69 @@ import { Toggle } from "@/components/ui/toggle";
 import { cn } from "@/lib/utils";
 import { CHANNEL_RULES, type ChannelRule } from "@/lib/channel-rules";
 import type { Platform } from "@/lib/generate-prompt";
-import { Check } from "lucide-react";
+import {
+  Code,
+  List,
+  Eye,
+  Smile,
+  MessageSquare,
+  Mail,
+  LayoutList,
+  HandMetal,
+  Minimize2,
+  Briefcase,
+  Sparkles,
+  AlignJustify,
+  MousePointerClick,
+  Hash,
+  Ruler,
+  MessageCircle,
+  CaseLower,
+  SmilePlus,
+  User,
+  FileText,
+  Lightbulb,
+  BookOpen,
+  Heading,
+  BookMarked,
+  type LucideIcon,
+} from "lucide-react";
+
+// Map icon names to components
+const ICON_MAP: Record<string, LucideIcon> = {
+  Code,
+  List,
+  Eye,
+  Smile,
+  MessageSquare,
+  Mail,
+  LayoutList,
+  HandMetal,
+  Minimize2,
+  Briefcase,
+  Sparkles,
+  AlignJustify,
+  MousePointerClick,
+  Hash,
+  Ruler,
+  MessageCircle,
+  CaseLower,
+  SmilePlus,
+  User,
+  FileText,
+  Lightbulb,
+  BookOpen,
+  Heading,
+  BookMarked,
+};
 
 interface ChannelRulesToggleProps {
   channel: Platform;
   enabledRuleIds: string[];
   onToggle: (ruleId: string, enabled: boolean) => void;
   className?: string;
+  /** Compact mode - icons only with tooltips */
+  compact?: boolean;
 }
 
 export function ChannelRulesToggle({
@@ -18,6 +74,7 @@ export function ChannelRulesToggle({
   enabledRuleIds,
   onToggle,
   className,
+  compact = false,
 }: ChannelRulesToggleProps) {
   const rules = CHANNEL_RULES[channel];
 
@@ -26,38 +83,41 @@ export function ChannelRulesToggle({
   }
 
   return (
-    <div className={cn("space-y-2", className)}>
-      <div className="flex items-center gap-2">
-        <span className="text-xs text-muted-foreground">
-          Channel rules ({channel}):
-        </span>
-      </div>
-      <div className="flex flex-wrap gap-1.5">
-        {rules.map((rule: ChannelRule) => {
-          const isEnabled = enabledRuleIds.includes(rule.id);
-          return (
-            <Toggle
-              key={rule.id}
-              variant="outline"
-              size="sm"
-              pressed={isEnabled}
-              onPressedChange={(pressed) => onToggle(rule.id, pressed)}
-              aria-label={`Toggle ${rule.label}`}
-              className={cn(
-                "h-7 px-2.5 text-xs font-normal rounded-full transition-all",
-                "border data-[state=on]:bg-foreground data-[state=on]:text-background",
-                "data-[state=on]:border-foreground",
-                "data-[state=off]:bg-transparent data-[state=off]:text-muted-foreground",
-                "data-[state=off]:border-border/60 data-[state=off]:hover:border-border",
-                "data-[state=off]:hover:text-foreground"
-              )}
-            >
-              {isEnabled && <Check className="h-3 w-3 mr-1" />}
-              {rule.label}
-            </Toggle>
-          );
-        })}
-      </div>
+    <div className={cn("flex flex-wrap gap-1", className)}>
+      {rules.map((rule: ChannelRule) => {
+        const isEnabled = enabledRuleIds.includes(rule.id);
+        const IconComponent = ICON_MAP[rule.icon];
+
+        return (
+          <Toggle
+            key={rule.id}
+            variant="outline"
+            size="sm"
+            pressed={isEnabled}
+            onPressedChange={(pressed) => onToggle(rule.id, pressed)}
+            aria-label={rule.label}
+            title={rule.label}
+            className={cn(
+              "transition-all",
+              compact
+                ? "h-8 w-8 p-0 rounded-md"
+                : "h-7 px-2 text-xs font-normal rounded-md gap-1.5",
+              "border data-[state=on]:bg-foreground data-[state=on]:text-background",
+              "data-[state=on]:border-foreground",
+              "data-[state=off]:bg-transparent data-[state=off]:text-muted-foreground",
+              "data-[state=off]:border-border/60 data-[state=off]:hover:border-border",
+              "data-[state=off]:hover:text-foreground"
+            )}
+          >
+            {IconComponent && (
+              <IconComponent
+                className={cn(compact ? "h-4 w-4" : "h-3.5 w-3.5")}
+              />
+            )}
+            {!compact && <span>{rule.label}</span>}
+          </Toggle>
+        );
+      })}
     </div>
   );
 }

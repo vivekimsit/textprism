@@ -42,7 +42,9 @@ interface IntentSentenceProps {
   /** Whether meta prompt has content */
   hasContent?: boolean;
   /** Tokens to highlight briefly (e.g., after preset apply) */
-  highlightTokens?: Partial<Record<"channel" | "audience" | "tone" | "persona", boolean>>;
+  highlightTokens?: Partial<
+    Record<"channel" | "audience" | "tone" | "persona", boolean>
+  >;
   className?: string;
 }
 
@@ -216,7 +218,11 @@ export function IntentSentence({
       const nudgeResult = applyNudge(newIntent, intent);
       onIntentChange(nudgeResult.intent);
 
-      if (nudgeResult.nudged && nudgeResult.message && nudgeResult.previousIntent) {
+      if (
+        nudgeResult.nudged &&
+        nudgeResult.message &&
+        nudgeResult.previousIntent
+      ) {
         setNudgeState({
           message: nudgeResult.message,
           previousIntent: nudgeResult.previousIntent,
@@ -236,7 +242,11 @@ export function IntentSentence({
       const nudgeResult = applyNudge(newIntent, intent);
       onIntentChange(nudgeResult.intent);
 
-      if (nudgeResult.nudged && nudgeResult.message && nudgeResult.previousIntent) {
+      if (
+        nudgeResult.nudged &&
+        nudgeResult.message &&
+        nudgeResult.previousIntent
+      ) {
         setNudgeState({
           message: nudgeResult.message,
           previousIntent: nudgeResult.previousIntent,
@@ -295,12 +305,14 @@ export function IntentSentence({
             <span className="w-1 h-1 bg-muted-foreground/50 rounded-full animate-pulse [animation-delay:150ms]" />
             <span className="w-1 h-1 bg-muted-foreground/50 rounded-full animate-pulse [animation-delay:300ms]" />
           </span>
-          Generating…
+          Updating…
         </span>
       );
     }
     if (hasContent) {
-      return <span className="text-xs text-muted-foreground/50">Up to date</span>;
+      return (
+        <span className="text-xs text-muted-foreground/50">Up to date</span>
+      );
     }
     return null;
   }
@@ -351,7 +363,8 @@ export function IntentSentence({
           {channelSuffix ? ` ${channelSuffix}` : ""}
           {showAudience ? (
             <>
-              {" "}to{" "}
+              {" "}
+              to{" "}
               <Token
                 label={audienceLabel}
                 value={intent.audience}
@@ -363,8 +376,8 @@ export function IntentSentence({
                 highlight={Boolean(highlightTokens?.audience)}
               />
             </>
-          ) : null}
-          {" "}— tone:{" "}
+          ) : null}{" "}
+          — tone:{" "}
           <Token
             label={toneLabel}
             value={intent.tone}
@@ -373,8 +386,8 @@ export function IntentSentence({
             isSentenceActive={isSentenceActive}
             ariaLabel="Change tone"
             highlight={Boolean(highlightTokens?.tone)}
-          />
-          {" "}— as{" "}
+          />{" "}
+          — as{" "}
           <Token
             label={personaLabel}
             value={intent.persona}

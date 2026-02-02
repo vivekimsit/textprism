@@ -110,7 +110,7 @@ export function MetaPromptCard({
       <div
         className={cn(
           "rounded-2xl border border-dashed border-border/70 bg-muted/5 overflow-hidden",
-          className,
+          className
         )}
       >
         <div className="flex items-center justify-between px-4 py-2.5">
@@ -121,13 +121,13 @@ export function MetaPromptCard({
     );
   }
 
-  // === GENERATING STATE: Typing but waiting for debounce ===
+  // === UPDATING STATE: Typing but waiting for debounce ===
   if (isGenerating && !hasContent) {
     return (
       <div
         className={cn(
           "rounded-2xl border border-border/50 bg-card overflow-hidden",
-          className,
+          className
         )}
       >
         <div className="flex items-center justify-between px-4 py-3">
@@ -139,7 +139,7 @@ export function MetaPromptCard({
               <span className="w-1.5 h-1.5 bg-muted-foreground/50 rounded-full animate-pulse [animation-delay:300ms]" />
             </span>
           </span>
-          <span className="text-xs text-muted-foreground/60">Generating…</span>
+          <span className="text-xs text-muted-foreground/60">Updating…</span>
         </div>
       </div>
     );
@@ -151,7 +151,7 @@ export function MetaPromptCard({
       className={cn(
         "rounded-2xl border bg-card overflow-hidden flex flex-col",
         "animate-in fade-in slide-in-from-top-2 duration-200",
-        className,
+        className
       )}
     >
       {/* Header */}
@@ -188,10 +188,16 @@ export function MetaPromptCard({
                 "h-7 px-3 text-xs font-medium",
                 hasApiKey && "hover:bg-primary/10"
               )}
-              title={!hasApiKey ? "Add API key in Settings to use AI" : "Send to AI"}
+              title={
+                !hasApiKey ? "Add API key in Settings to use AI" : "Send to AI"
+              }
             >
               <Sparkles className="h-3.5 w-3.5 mr-1.5" />
-              {isAiLoading ? "Generating..." : hasApiKey ? "Send to AI" : "Send to AI"}
+              {isAiLoading
+                ? "Generating..."
+                : hasApiKey
+                ? "Send to AI"
+                : "Send to AI"}
             </Button>
           )}
 
@@ -205,7 +211,7 @@ export function MetaPromptCard({
               "h-7 px-3 text-xs font-medium",
               isReady
                 ? "bg-foreground text-background hover:bg-foreground/90"
-                : "text-muted-foreground",
+                : "text-muted-foreground"
             )}
             title={isReady ? "Copy meta prompt" : "Updating…"}
           >
@@ -254,7 +260,7 @@ export function MetaPromptCard({
       <div
         className={cn(
           "overflow-y-auto transition-[max-height] duration-200 ease-out",
-          isExpanded ? "max-h-[320px]" : "max-h-[72px]",
+          isExpanded ? "max-h-[320px]" : "max-h-[72px]"
         )}
       >
         <div className="p-4">
@@ -274,7 +280,7 @@ export function MetaPromptCard({
         <span
           className={cn(
             "text-xs",
-            isGenerating ? "text-muted-foreground" : "text-muted-foreground/70",
+            isGenerating ? "text-muted-foreground" : "text-muted-foreground/70"
           )}
         >
           {isGenerating ? "Updating…" : "Prompt ready to copy"}

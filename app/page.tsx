@@ -41,7 +41,11 @@ import {
   COMPANY_SIZE_OPTIONS,
   YEARS_EXPERIENCE_OPTIONS,
 } from "@/hooks/use-preferences";
-import { useHistory, type RecentItem, type DraftItem } from "@/hooks/use-history";
+import {
+  useHistory,
+  type RecentItem,
+  type DraftItem,
+} from "@/hooks/use-history";
 import {
   generatePrompt,
   canGenerate,
@@ -117,7 +121,9 @@ function HomeContent() {
   const [activePresetId, setActivePresetId] = useState<string | null>(null);
   const [extraRules, setExtraRules] = useState<string[]>([]);
   // Channel rules: track enabled rule IDs per channel (session state, synced with preferences)
-  const [channelRulesState, setChannelRulesState] = useState<Record<string, string[]>>({});
+  const [channelRulesState, setChannelRulesState] = useState<
+    Record<string, string[]>
+  >({});
   const [hasUserExpandedMetaPrompt, setHasUserExpandedMetaPrompt] =
     useState(false);
   const [draftsExpanded, setDraftsExpanded] = useState(false);
@@ -130,13 +136,19 @@ function HomeContent() {
   const lastExpandedPromotionRef = useRef<string | null>(null);
   const shouldScrollToMetaPromptRef = useRef(false);
   const shouldAutoSendToAiRef = useRef(false);
-  
+
   // Track cursor position for layout transition
-  const [savedCursorPosition, setSavedCursorPosition] = useState<{ start: number; end: number } | null>(null);
-  
+  const [savedCursorPosition, setSavedCursorPosition] = useState<{
+    start: number;
+    end: number;
+  } | null>(null);
+
   // Control meta prompt expansion (collapse when sending to AI)
   const [forceCollapseMetaPrompt, setForceCollapseMetaPrompt] = useState(false);
-  
+
+  // Track input used for AI generation (for staleness detection)
+  const [lastAiGenerationInput, setLastAiGenerationInput] = useState("");
+
   // AI generation hook - uses API key from preferences
   const aiGeneration = useAiGeneration({
     apiKey: preferences.openaiApiKey,
@@ -171,7 +183,10 @@ function HomeContent() {
 
   // Build channel rules text from enabled rules
   const channelRulesText = useMemo(() => {
-    return buildChannelRulesText(intent.channel as Platform, currentEnabledRules);
+    return buildChannelRulesText(
+      intent.channel as Platform,
+      currentEnabledRules
+    );
   }, [intent.channel, currentEnabledRules]);
 
   // Handle toggling a channel rule
@@ -179,20 +194,20 @@ function HomeContent() {
     (ruleId: string, enabled: boolean) => {
       const channel = intent.channel;
       const currentRules = currentEnabledRules;
-      
+
       let newRules: string[];
       if (enabled) {
         newRules = [...currentRules, ruleId];
       } else {
         newRules = currentRules.filter((id) => id !== ruleId);
       }
-      
+
       // Update session state
       setChannelRulesState((prev) => ({
         ...prev,
         [channel]: newRules,
       }));
-      
+
       // Persist to preferences
       setChannelRules(channel, newRules);
     },
@@ -274,16 +289,16 @@ function HomeContent() {
     if (!shouldAutoSendToAiRef.current) return;
     if (metaPromptStatus !== "ready") return;
     if (!metaPrompt || !preferences.openaiApiKey) return;
-    
+
     // Reset the flag
     shouldAutoSendToAiRef.current = false;
-    
+
     // Reset previous AI response
     aiGeneration.reset();
-    
+
     // Collapse meta prompt card to focus on AI response
     setForceCollapseMetaPrompt(true);
-    
+
     // Build messages array for AI
     const messages: Message[] = [
       {
@@ -291,7 +306,7 @@ function HomeContent() {
         content: metaPrompt,
       },
     ];
-    
+
     // Generate AI response
     aiGeneration.generate(messages);
   }, [metaPromptStatus, metaPrompt, preferences.openaiApiKey, aiGeneration]);
@@ -302,11 +317,11 @@ function HomeContent() {
     const audience = intent.audience ? getAudienceLabel(intent.audience) : "";
     const tone = getToneLabel(intent.tone);
     const persona = getPersonaLabel(intent.persona);
-    
+
     const parts = [channel];
     if (audience) parts.push(audience);
     parts.push(tone, persona);
-    
+
     return parts.join(" · ");
   }, [intent]);
 
@@ -314,6 +329,23 @@ function HomeContent() {
   const isAiModeActive = Boolean(
     aiGeneration.response || aiGeneration.isLoading || aiGeneration.error
   );
+
+  // Compute staleness - AI response is stale if input has changed after debounce
+  const isAiResponseStale = useMemo(() => {
+    // Only relevant when AI response exists and is not currently loading
+    if (!aiGeneration.response || aiGeneration.isLoading) return false;
+
+    // Compare current debounced input with what was used for AI generation
+    const currentInput = debouncedInputText.trim();
+    return (
+      currentInput !== lastAiGenerationInput && currentInput.length >= THRESHOLD
+    );
+  }, [
+    aiGeneration.response,
+    aiGeneration.isLoading,
+    debouncedInputText,
+    lastAiGenerationInput,
+  ]);
 
   const promptContext = useMemo(
     () => ({
@@ -403,6 +435,7 @@ function HomeContent() {
     setHighlightTokens({});
     setHasRequestedGeneration(false);
     setGenerationSeed("");
+    setLastAiGenerationInput("");
     shouldScrollToMetaPromptRef.current = false;
     textareaRef.current?.focus();
   }
@@ -425,13 +458,16 @@ function HomeContent() {
 
   function handleSendToAi() {
     if (!metaPrompt || !preferences.openaiApiKey) return;
-    
+
+    // Track the input used for this AI generation
+    setLastAiGenerationInput(inputText.trim());
+
     // Reset previous AI response
     aiGeneration.reset();
-    
+
     // Collapse meta prompt card to focus on AI response
     setForceCollapseMetaPrompt(true);
-    
+
     // Build messages array for AI
     const messages: Message[] = [
       {
@@ -439,7 +475,7 @@ function HomeContent() {
         content: metaPrompt,
       },
     ];
-    
+
     // Generate AI response
     aiGeneration.generate(messages);
   }
@@ -448,14 +484,17 @@ function HomeContent() {
     const trimmedInput = inputText.trim();
     if (trimmedInput.length < THRESHOLD) return;
     if (!preferences.openaiApiKey) return;
-    
+
+    // Track the input used for this AI generation
+    setLastAiGenerationInput(trimmedInput);
+
     // First, generate the meta prompt
     setGenerationSeed(trimmedInput);
     setHasRequestedGeneration(true);
-    
+
     // Reset previous AI response
     aiGeneration.reset();
-    
+
     // Mark that we want to auto-send to AI once meta prompt is ready
     // We'll use a ref to track this intent
     shouldAutoSendToAiRef.current = true;
@@ -464,6 +503,7 @@ function HomeContent() {
   function handleApiKeyClear() {
     clearOpenaiApiKey();
     aiGeneration.reset();
+    setLastAiGenerationInput("");
   }
 
   function buildPresetTags(preset: Preset) {
@@ -523,7 +563,13 @@ function HomeContent() {
       context: promptContext,
       metaPrompt,
     });
-  }, [debouncedInputText, hasRequestedGeneration, metaPrompt, promptContext, saveDraft]);
+  }, [
+    debouncedInputText,
+    hasRequestedGeneration,
+    metaPrompt,
+    promptContext,
+    saveDraft,
+  ]);
 
   useEffect(() => {
     if (!hasUserExpandedMetaPrompt) return;
@@ -819,142 +865,75 @@ function HomeContent() {
               <div className="w-full max-w-2xl mx-auto flex-1 flex flex-col">
                 {/* Top Bar - logo anchored left, controls right */}
                 <div className="flex items-center justify-between">
-              <Logo
-                className="text-foreground"
-                onClick={handleReset}
-              />
-              <div className="flex items-center gap-3">
-                <a
-                  href={FEEDBACK_URL}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-                  aria-label="Leave feedback"
-                >
-                  Feedback
-                </a>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() =>
-                    setTheme(resolvedTheme === "dark" ? "light" : "dark")
-                  }
-                  className="h-8 px-2"
-                  title="Toggle dark mode"
-                  aria-label="Toggle dark mode"
-                  disabled={!isMounted}
-                >
-                  {isMounted ? (
-                    resolvedTheme === "dark" ? (
-                      <Sun className="h-4 w-4" />
-                    ) : (
-                      <Moon className="h-4 w-4" />
-                    )
-                  ) : null}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowSettings(!showSettings)}
-                  className={cn("h-8 px-2", showSettings ? "bg-muted" : "")}
-                >
-                  <Settings className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-
-            {/* Settings Panel */}
-            {showSettings ? (
-              <div className="p-4 border rounded-2xl bg-card space-y-4 animate-in fade-in slide-in-from-top-2 duration-200 mt-4">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium">Defaults</p>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6"
-                    onClick={() => setShowSettings(false)}
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-xs text-muted-foreground">
-                      Who I am
-                    </label>
-                    <Select value={preferences.whoIAm} onValueChange={setWhoIAm}>
-                      <SelectTrigger className="h-9">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {WHO_I_AM_OPTIONS.map((opt) => (
-                          <SelectItem key={opt.value} value={opt.value}>
-                            {opt.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs text-muted-foreground">
-                      Default Tone
-                    </label>
-                    <Select
-                      value={preferences.defaultTone}
-                      onValueChange={setDefaultTone}
+                  <Logo className="text-foreground" onClick={handleReset} />
+                  <div className="flex items-center gap-3">
+                    <a
+                      href={FEEDBACK_URL}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                      aria-label="Leave feedback"
                     >
-                      <SelectTrigger className="h-9">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {TONE_OPTIONS.map((opt) => (
-                          <SelectItem key={opt.value} value={opt.value}>
-                            {opt.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      Feedback
+                    </a>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() =>
+                        setTheme(resolvedTheme === "dark" ? "light" : "dark")
+                      }
+                      className="h-8 px-2"
+                      title="Toggle dark mode"
+                      aria-label="Toggle dark mode"
+                      disabled={!isMounted}
+                    >
+                      {isMounted ? (
+                        resolvedTheme === "dark" ? (
+                          <Sun className="h-4 w-4" />
+                        ) : (
+                          <Moon className="h-4 w-4" />
+                        )
+                      ) : null}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowSettings(!showSettings)}
+                      className={cn("h-8 px-2", showSettings ? "bg-muted" : "")}
+                    >
+                      <Settings className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
 
-                {/* Advanced Settings Toggle */}
-                <button
-                  onClick={() => setShowAdvancedSettings(!showAdvancedSettings)}
-                  className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
-                >
-                  <span>
-                    {showAdvancedSettings ? "Hide" : "Show"} advanced settings
-                  </span>
-                  <span className="text-[10px]">
-                    {showAdvancedSettings ? "▲" : "▼"}
-                  </span>
-                </button>
-
-                {/* Advanced Settings */}
-                {showAdvancedSettings ? (
-                  <div className="space-y-4 pt-2 border-t border-border/50 animate-in fade-in slide-in-from-top-1 duration-150">
-                    <p className="text-xs text-muted-foreground">
-                      These help generate more contextually relevant prompts
-                    </p>
+                {/* Settings Panel */}
+                {showSettings ? (
+                  <div className="p-4 border rounded-2xl bg-card space-y-4 animate-in fade-in slide-in-from-top-2 duration-200 mt-4">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium">Defaults</p>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => setShowSettings(false)}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1.5">
                         <label className="text-xs text-muted-foreground">
-                          Country
+                          Who I am
                         </label>
                         <Select
-                          value={preferences.country || "placeholder"}
-                          onValueChange={(value) =>
-                            setCountry(value === "placeholder" ? "" : value)
-                          }
+                          value={preferences.whoIAm}
+                          onValueChange={setWhoIAm}
                         >
                           <SelectTrigger className="h-9">
-                            <SelectValue placeholder="Select country" />
+                            <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="placeholder" disabled>
-                              Select country
-                            </SelectItem>
-                            {COUNTRY_OPTIONS.map((opt) => (
+                            {WHO_I_AM_OPTIONS.map((opt) => (
                               <SelectItem key={opt.value} value={opt.value}>
                                 {opt.label}
                               </SelectItem>
@@ -964,22 +943,17 @@ function HomeContent() {
                       </div>
                       <div className="space-y-1.5">
                         <label className="text-xs text-muted-foreground">
-                          Industry
+                          Default Tone
                         </label>
                         <Select
-                          value={preferences.jobCategory || "placeholder"}
-                          onValueChange={(value) =>
-                            setJobCategory(value === "placeholder" ? "" : value)
-                          }
+                          value={preferences.defaultTone}
+                          onValueChange={setDefaultTone}
                         >
                           <SelectTrigger className="h-9">
-                            <SelectValue placeholder="Select industry" />
+                            <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="placeholder" disabled>
-                              Select industry
-                            </SelectItem>
-                            {JOB_CATEGORY_OPTIONS.map((opt) => (
+                            {TONE_OPTIONS.map((opt) => (
                               <SelectItem key={opt.value} value={opt.value}>
                                 {opt.label}
                               </SelectItem>
@@ -987,176 +961,257 @@ function HomeContent() {
                           </SelectContent>
                         </Select>
                       </div>
-                      <div className="space-y-1.5">
-                        <label className="text-xs text-muted-foreground">
-                          Company Size
-                        </label>
-                        <Select
-                          value={preferences.companySize || "placeholder"}
-                          onValueChange={(value) =>
-                            setCompanySize(value === "placeholder" ? "" : value)
-                          }
-                        >
-                          <SelectTrigger className="h-9">
-                            <SelectValue placeholder="Select size" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="placeholder" disabled>
-                              Select size
-                            </SelectItem>
-                            {COMPANY_SIZE_OPTIONS.map((opt) => (
-                              <SelectItem key={opt.value} value={opt.value}>
-                                {opt.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                    </div>
+
+                    {/* Advanced Settings Toggle */}
+                    <button
+                      onClick={() =>
+                        setShowAdvancedSettings(!showAdvancedSettings)
+                      }
+                      className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+                    >
+                      <span>
+                        {showAdvancedSettings ? "Hide" : "Show"} advanced
+                        settings
+                      </span>
+                      <span className="text-[10px]">
+                        {showAdvancedSettings ? "▲" : "▼"}
+                      </span>
+                    </button>
+
+                    {/* Advanced Settings */}
+                    {showAdvancedSettings ? (
+                      <div className="space-y-4 pt-2 border-t border-border/50 animate-in fade-in slide-in-from-top-1 duration-150">
+                        <p className="text-xs text-muted-foreground">
+                          These help generate more contextually relevant prompts
+                        </p>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1.5">
+                            <label className="text-xs text-muted-foreground">
+                              Country
+                            </label>
+                            <Select
+                              value={preferences.country || "placeholder"}
+                              onValueChange={(value) =>
+                                setCountry(value === "placeholder" ? "" : value)
+                              }
+                            >
+                              <SelectTrigger className="h-9">
+                                <SelectValue placeholder="Select country" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="placeholder" disabled>
+                                  Select country
+                                </SelectItem>
+                                {COUNTRY_OPTIONS.map((opt) => (
+                                  <SelectItem key={opt.value} value={opt.value}>
+                                    {opt.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1.5">
+                            <label className="text-xs text-muted-foreground">
+                              Industry
+                            </label>
+                            <Select
+                              value={preferences.jobCategory || "placeholder"}
+                              onValueChange={(value) =>
+                                setJobCategory(
+                                  value === "placeholder" ? "" : value
+                                )
+                              }
+                            >
+                              <SelectTrigger className="h-9">
+                                <SelectValue placeholder="Select industry" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="placeholder" disabled>
+                                  Select industry
+                                </SelectItem>
+                                {JOB_CATEGORY_OPTIONS.map((opt) => (
+                                  <SelectItem key={opt.value} value={opt.value}>
+                                    {opt.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1.5">
+                            <label className="text-xs text-muted-foreground">
+                              Company Size
+                            </label>
+                            <Select
+                              value={preferences.companySize || "placeholder"}
+                              onValueChange={(value) =>
+                                setCompanySize(
+                                  value === "placeholder" ? "" : value
+                                )
+                              }
+                            >
+                              <SelectTrigger className="h-9">
+                                <SelectValue placeholder="Select size" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="placeholder" disabled>
+                                  Select size
+                                </SelectItem>
+                                {COMPANY_SIZE_OPTIONS.map((opt) => (
+                                  <SelectItem key={opt.value} value={opt.value}>
+                                    {opt.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1.5">
+                            <label className="text-xs text-muted-foreground">
+                              Experience
+                            </label>
+                            <Select
+                              value={
+                                preferences.yearsExperience || "placeholder"
+                              }
+                              onValueChange={(value) =>
+                                setYearsExperience(
+                                  value === "placeholder" ? "" : value
+                                )
+                              }
+                            >
+                              <SelectTrigger className="h-9">
+                                <SelectValue placeholder="Select experience" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="placeholder" disabled>
+                                  Select experience
+                                </SelectItem>
+                                {YEARS_EXPERIENCE_OPTIONS.map((opt) => (
+                                  <SelectItem key={opt.value} value={opt.value}>
+                                    {opt.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
                       </div>
-                      <div className="space-y-1.5">
-                        <label className="text-xs text-muted-foreground">
-                          Experience
-                        </label>
-                        <Select
-                          value={preferences.yearsExperience || "placeholder"}
-                          onValueChange={(value) =>
-                            setYearsExperience(
-                              value === "placeholder" ? "" : value
-                            )
-                          }
-                        >
-                          <SelectTrigger className="h-9">
-                            <SelectValue placeholder="Select experience" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="placeholder" disabled>
-                              Select experience
-                            </SelectItem>
-                            {YEARS_EXPERIENCE_OPTIONS.map((opt) => (
-                              <SelectItem key={opt.value} value={opt.value}>
-                                {opt.label}
+                    ) : null}
+
+                    {/* AI Generation Settings */}
+                    <div className="space-y-3 pt-4 border-t border-border/50">
+                      <p className="text-sm font-medium">AI Generation</p>
+                      <p className="text-xs text-muted-foreground">
+                        Add your OpenAI API key to generate messages directly
+                      </p>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1.5 col-span-2">
+                          <label className="text-xs text-muted-foreground">
+                            OpenAI API Key
+                          </label>
+                          <div className="flex gap-2">
+                            <Input
+                              type="password"
+                              value={preferences.openaiApiKey}
+                              onChange={(e) => setOpenaiApiKey(e.target.value)}
+                              placeholder="sk-..."
+                              className="h-9 flex-1"
+                            />
+                            {preferences.openaiApiKey && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleApiKeyClear}
+                                className="h-9 px-3"
+                              >
+                                Clear
+                              </Button>
+                            )}
+                          </div>
+                          <p className="text-[10px] text-muted-foreground">
+                            Stored locally in your browser. Never sent to our
+                            servers.
+                          </p>
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-xs text-muted-foreground">
+                            Model
+                          </label>
+                          <Select
+                            value={preferences.selectedModel}
+                            onValueChange={setSelectedModel}
+                          >
+                            <SelectTrigger className="h-9">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="gpt-4o-mini">
+                                GPT-4o Mini
                               </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                              <SelectItem value="gpt-4o">GPT-4o</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </div>
+                      {!preferences.openaiApiKey && (
+                        <a
+                          href="https://platform.openai.com/api-keys"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                        >
+                          Get your API key from OpenAI
+                        </a>
+                      )}
                     </div>
                   </div>
                 ) : null}
 
-                {/* AI Generation Settings */}
-                <div className="space-y-3 pt-4 border-t border-border/50">
-                  <p className="text-sm font-medium">AI Generation</p>
-                  <p className="text-xs text-muted-foreground">
-                    Add your OpenAI API key to generate messages directly
-                  </p>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5 col-span-2">
-                      <label className="text-xs text-muted-foreground">
-                        OpenAI API Key
-                      </label>
-                      <div className="flex gap-2">
-                        <Input
-                          type="password"
-                          value={preferences.openaiApiKey}
-                          onChange={(e) => setOpenaiApiKey(e.target.value)}
-                          placeholder="sk-..."
-                          className="h-9 flex-1"
-                        />
-                        {preferences.openaiApiKey && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={handleApiKeyClear}
-                            className="h-9 px-3"
-                          >
-                            Clear
-                          </Button>
-                        )}
-                      </div>
-                      <p className="text-[10px] text-muted-foreground">
-                        Stored locally in your browser. Never sent to our servers.
-                      </p>
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-xs text-muted-foreground">
-                        Model
-                      </label>
-                      <Select
-                        value={preferences.selectedModel}
-                        onValueChange={setSelectedModel}
-                      >
-                        <SelectTrigger className="h-9">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="gpt-4o-mini">GPT-4o Mini</SelectItem>
-                          <SelectItem value="gpt-4o">GPT-4o</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                {/* AI Response Card - primary output when AI mode is active */}
+                {isAiModeActive && (
+                  <AiResponseCard
+                    className="mt-auto pt-4"
+                    response={aiGeneration.response}
+                    isLoading={aiGeneration.isLoading}
+                    error={aiGeneration.error}
+                    isStale={isAiResponseStale}
+                  />
+                )}
+
+                {/* Show Prompt Toggle - minimal view when AI mode is active */}
+                {isAiModeActive && metaPrompt && (
+                  <ShowPromptToggle
+                    key={`prompt-${metaPrompt.substring(0, 50)}`}
+                    className="mt-4"
+                    metaPrompt={metaPrompt}
+                    intentSummary={intentSummary}
+                  />
+                )}
+
+                {/* Meta Prompt Card - full view when AI mode is NOT active */}
+                {!isAiModeActive && (
+                  <div ref={metaPromptRef}>
+                    <MetaPromptCard
+                      className="mt-auto pt-4"
+                      metaPrompt={metaPrompt}
+                      isGenerating={isGenerating}
+                      hasEnoughText={hasEnoughText}
+                      intentSummary={intentSummary}
+                      channel={intent.channel as Platform}
+                      enabledRuleIds={currentEnabledRules}
+                      onRuleToggle={handleRuleToggle}
+                      onCopy={handleCopyCallback}
+                      onExpand={() => {
+                        setHasUserExpandedMetaPrompt(true);
+                        setForceCollapseMetaPrompt(false); // Reset force collapse when user expands
+                      }}
+                      hasApiKey={preferences.openaiApiKey.length > 0}
+                      onSendToAi={handleSendToAi}
+                      isAiLoading={aiGeneration.isLoading}
+                      forceCollapsed={forceCollapseMetaPrompt}
+                    />
                   </div>
-                  {!preferences.openaiApiKey && (
-                    <a
-                      href="https://platform.openai.com/api-keys"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-                    >
-                      Get your API key from OpenAI
-                    </a>
-                  )}
-                </div>
-              </div>
-            ) : null}
-
-            {/* AI Response Card - primary output when AI mode is active */}
-            {isAiModeActive && (
-              <AiResponseCard
-                className="mt-auto pt-4"
-                response={aiGeneration.response}
-                isLoading={aiGeneration.isLoading}
-                error={aiGeneration.error}
-                onRegenerate={handleSendToAi}
-                channel={intent.channel as Platform}
-                enabledRuleIds={currentEnabledRules}
-                onRuleToggle={handleRuleToggle}
-              />
-            )}
-
-            {/* Show Prompt Toggle - minimal view when AI mode is active */}
-            {isAiModeActive && metaPrompt && (
-              <ShowPromptToggle
-                key={`prompt-${metaPrompt.substring(0, 50)}`}
-                className="mt-4"
-                metaPrompt={metaPrompt}
-                intentSummary={intentSummary}
-              />
-            )}
-
-            {/* Meta Prompt Card - full view when AI mode is NOT active */}
-            {!isAiModeActive && (
-              <div ref={metaPromptRef}>
-                <MetaPromptCard
-                  className="mt-auto pt-4"
-                  metaPrompt={metaPrompt}
-                  isGenerating={isGenerating}
-                  hasEnoughText={hasEnoughText}
-                  intentSummary={intentSummary}
-                  channel={intent.channel as Platform}
-                  enabledRuleIds={currentEnabledRules}
-                  onRuleToggle={handleRuleToggle}
-                  onCopy={handleCopyCallback}
-                  onExpand={() => {
-                    setHasUserExpandedMetaPrompt(true);
-                    setForceCollapseMetaPrompt(false); // Reset force collapse when user expands
-                  }}
-                  hasApiKey={preferences.openaiApiKey.length > 0}
-                  onSendToAi={handleSendToAi}
-                  isAiLoading={aiGeneration.isLoading}
-                  forceCollapsed={forceCollapseMetaPrompt}
-                />
-              </div>
-            )}
+                )}
               </div>
             </div>
 
@@ -1166,6 +1221,7 @@ function HomeContent() {
               value={inputText}
               onChange={setInputText}
               onInputBlur={handleInputBlur}
+              onGenerate={handleGenerateMetaPrompt}
               threshold={THRESHOLD}
               intent={intent}
               onIntentChange={handleIntentChange}
@@ -1176,6 +1232,13 @@ function HomeContent() {
               initialCursorPosition={savedCursorPosition}
               isGenerating={isGenerating}
               hasContent={metaPrompt.length > 0}
+              hasApiKey={preferences.openaiApiKey.length > 0}
+              onGenerateWithAi={handleGenerateWithAi}
+              showDockedGenerateCTA={isAiModeActive}
+              showChannelRules={isAiModeActive}
+              channel={intent.channel as Platform}
+              enabledRuleIds={currentEnabledRules}
+              onRuleToggle={handleRuleToggle}
             />
           </>
         ) : (
@@ -1183,10 +1246,7 @@ function HomeContent() {
           <div className="flex-1 flex flex-col items-center justify-center px-4 py-8">
             {/* Logo centered above */}
             <div className="mb-8">
-              <Logo
-                className="text-foreground"
-                onClick={handleReset}
-              />
+              <Logo className="text-foreground" onClick={handleReset} />
             </div>
 
             {/* Centered composer */}
@@ -1268,7 +1328,9 @@ function HomeContent() {
 
                 {/* AI Generation Settings */}
                 <div className="space-y-3">
-                  <p className="text-xs font-medium text-muted-foreground">AI Generation</p>
+                  <p className="text-xs font-medium text-muted-foreground">
+                    AI Generation
+                  </p>
                   <div className="space-y-3">
                     <div className="space-y-1.5">
                       <label className="text-xs text-muted-foreground">
@@ -1298,7 +1360,9 @@ function HomeContent() {
                       </p>
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-xs text-muted-foreground">Model</label>
+                      <label className="text-xs text-muted-foreground">
+                        Model
+                      </label>
                       <Select
                         value={preferences.selectedModel}
                         onValueChange={setSelectedModel}
@@ -1307,7 +1371,9 @@ function HomeContent() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="gpt-4o-mini">GPT-4o Mini</SelectItem>
+                          <SelectItem value="gpt-4o-mini">
+                            GPT-4o Mini
+                          </SelectItem>
                           <SelectItem value="gpt-4o">GPT-4o</SelectItem>
                         </SelectContent>
                       </Select>
@@ -1327,11 +1393,18 @@ function HomeContent() {
 
                 {/* Defaults */}
                 <div className="space-y-3 pt-3 border-t border-border/50">
-                  <p className="text-xs font-medium text-muted-foreground">Defaults</p>
+                  <p className="text-xs font-medium text-muted-foreground">
+                    Defaults
+                  </p>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
-                      <label className="text-xs text-muted-foreground">Who I am</label>
-                      <Select value={preferences.whoIAm} onValueChange={setWhoIAm}>
+                      <label className="text-xs text-muted-foreground">
+                        Who I am
+                      </label>
+                      <Select
+                        value={preferences.whoIAm}
+                        onValueChange={setWhoIAm}
+                      >
                         <SelectTrigger className="h-9">
                           <SelectValue />
                         </SelectTrigger>
@@ -1345,8 +1418,13 @@ function HomeContent() {
                       </Select>
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-xs text-muted-foreground">Default Tone</label>
-                      <Select value={preferences.defaultTone} onValueChange={setDefaultTone}>
+                      <label className="text-xs text-muted-foreground">
+                        Default Tone
+                      </label>
+                      <Select
+                        value={preferences.defaultTone}
+                        onValueChange={setDefaultTone}
+                      >
                         <SelectTrigger className="h-9">
                           <SelectValue />
                         </SelectTrigger>

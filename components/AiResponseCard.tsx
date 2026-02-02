@@ -1,34 +1,26 @@
 "use client";
 
 import { useState } from "react";
-import { Copy, Check, RefreshCw } from "lucide-react";
+import { Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { ChannelRulesToggle } from "./ChannelRulesToggle";
-import type { Platform } from "@/lib/generate-prompt";
 
 interface AiResponseCardProps {
   response: string;
   isLoading: boolean;
   error: string | null;
-  onRegenerate?: () => void;
   className?: string;
-  /** Channel rules props for AI mode */
-  channel?: Platform;
-  enabledRuleIds?: string[];
-  onRuleToggle?: (ruleId: string, enabled: boolean) => void;
+  /** Whether the response is stale (input has changed) */
+  isStale?: boolean;
 }
 
 export function AiResponseCard({
   response,
   isLoading,
   error,
-  onRegenerate,
   className,
-  channel,
-  enabledRuleIds,
-  onRuleToggle,
+  isStale = false,
 }: AiResponseCardProps) {
   const [copied, setCopied] = useState(false);
 
@@ -38,7 +30,9 @@ export function AiResponseCard({
     try {
       await navigator.clipboard.writeText(response);
       setCopied(true);
-      toast.success("Copied!", { description: "AI response copied to clipboard" });
+      toast.success("Copied!", {
+        description: "AI response copied to clipboard",
+      });
       setTimeout(() => setCopied(false), 2000);
     } catch {
       toast.error("Failed to copy");
@@ -61,66 +55,34 @@ export function AiResponseCard({
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-2.5 border-b bg-muted/20">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-foreground">AI Response</span>
-          {isLoading && (
-            <span className="inline-flex gap-1">
-              <span className="w-1.5 h-1.5 bg-muted-foreground/50 rounded-full animate-pulse" />
-              <span className="w-1.5 h-1.5 bg-muted-foreground/50 rounded-full animate-pulse [animation-delay:150ms]" />
-              <span className="w-1.5 h-1.5 bg-muted-foreground/50 rounded-full animate-pulse [animation-delay:300ms]" />
-            </span>
-          )}
+          <span className="text-sm font-medium text-foreground">
+            AI Response
+          </span>
         </div>
         <div className="flex items-center gap-1.5">
           {response && !isLoading && (
-            <>
-              {/* Regenerate button */}
-              {onRegenerate && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={onRegenerate}
-                  className="h-7 px-3 text-xs"
-                  title="Regenerate response"
-                >
-                  <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
-                  Regenerate
-                </Button>
+            <Button
+              variant="default"
+              size="sm"
+              onClick={handleCopy}
+              className="h-7 px-3 text-xs font-medium bg-foreground text-background hover:bg-foreground/90"
+              title="Copy AI response"
+            >
+              {copied ? (
+                <>
+                  <Check className="h-3.5 w-3.5 mr-1.5" />
+                  Copied
+                </>
+              ) : (
+                <>
+                  <Copy className="h-3.5 w-3.5 mr-1.5" />
+                  Copy
+                </>
               )}
-              {/* Copy button */}
-              <Button
-                variant="default"
-                size="sm"
-                onClick={handleCopy}
-                className="h-7 px-3 text-xs font-medium bg-foreground text-background hover:bg-foreground/90"
-                title="Copy AI response"
-              >
-                {copied ? (
-                  <>
-                    <Check className="h-3.5 w-3.5 mr-1.5" />
-                    Copied
-                  </>
-                ) : (
-                  <>
-                    <Copy className="h-3.5 w-3.5 mr-1.5" />
-                    Copy
-                  </>
-                )}
-              </Button>
-            </>
+            </Button>
           )}
         </div>
       </div>
-
-      {/* Channel Rules Toggle Section */}
-      {channel && enabledRuleIds && onRuleToggle ? (
-        <div className="px-4 py-3 border-b bg-muted/10">
-          <ChannelRulesToggle
-            channel={channel}
-            enabledRuleIds={enabledRuleIds}
-            onToggle={onRuleToggle}
-          />
-        </div>
-      ) : null}
 
       {/* Body - scrollable area */}
       <div className="overflow-y-auto max-h-[400px]">
@@ -131,8 +93,12 @@ export function AiResponseCard({
               <p className="mt-1">{error}</p>
             </div>
           ) : isLoading && !response ? (
-            <div className="text-sm text-muted-foreground">
-              Generating response...
+            <div className="text-sm text-muted-foreground flex items-center gap-2">
+              <span className="inline-flex gap-1">
+                <span className="w-1.5 h-1.5 bg-muted-foreground/50 rounded-full animate-pulse" />
+                <span className="w-1.5 h-1.5 bg-muted-foreground/50 rounded-full animate-pulse [animation-delay:150ms]" />
+                <span className="w-1.5 h-1.5 bg-muted-foreground/50 rounded-full animate-pulse [animation-delay:300ms]" />
+              </span>
             </div>
           ) : (
             <div className="prose prose-sm dark:prose-invert max-w-none">
@@ -145,11 +111,18 @@ export function AiResponseCard({
       </div>
 
       {/* Footer - status */}
-      {!error && (
+      {!error && !isLoading && (
         <div className="px-4 py-2 border-t bg-muted/10">
-          <span className="text-xs text-muted-foreground/70">
-            {isLoading ? "Generating..." : "Response ready"}
-          </span>
+          {isStale ? (
+            <span className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 bg-amber-600 dark:bg-amber-400 rounded-full" />
+              Input has changed
+            </span>
+          ) : (
+            <span className="text-xs text-muted-foreground/70">
+              Response ready
+            </span>
+          )}
         </div>
       )}
     </div>

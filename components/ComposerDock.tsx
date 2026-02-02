@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { IntentSentence } from "./IntentSentence";
 import { SplitGenerateButton } from "./SplitGenerateButton";
+import { ChannelRulesToggle } from "./ChannelRulesToggle";
 import {
   type Intent,
   getAudienceLabel,
@@ -14,6 +15,7 @@ import {
   getToneLabel,
 } from "@/lib/intent";
 import type { Preset } from "@/lib/presets";
+import type { Platform } from "@/lib/generate-prompt";
 
 interface ComposerDockProps {
   value: string;
@@ -42,6 +44,13 @@ interface ComposerDockProps {
   hasApiKey?: boolean;
   /** Callback for direct AI generation (bypasses manual meta prompt step) */
   onGenerateWithAi?: () => void;
+  /** Show generate CTA in docked mode (e.g., when response is stale) */
+  showDockedGenerateCTA?: boolean;
+  /** Channel rules props - shown in docked mode when AI mode is active */
+  showChannelRules?: boolean;
+  channel?: Platform;
+  enabledRuleIds?: string[];
+  onRuleToggle?: (ruleId: string, enabled: boolean) => void;
   className?: string;
 }
 
@@ -66,9 +75,14 @@ export const ComposerDock = forwardRef<HTMLTextAreaElement, ComposerDockProps>(
       showGenerateCTA = false,
       hasApiKey = false,
       onGenerateWithAi,
+      showDockedGenerateCTA = false,
+      showChannelRules = false,
+      channel,
+      enabledRuleIds,
+      onRuleToggle,
       className,
     },
-    ref,
+    ref
   ) {
     const internalRef = useRef<HTMLTextAreaElement>(null);
     const textareaRef =
@@ -89,7 +103,7 @@ export const ComposerDock = forwardRef<HTMLTextAreaElement, ComposerDockProps>(
             textarea.focus();
             textarea.setSelectionRange(
               initialCursorPosition.start,
-              initialCursorPosition.end,
+              initialCursorPosition.end
             );
           });
         }
@@ -134,21 +148,21 @@ export const ComposerDock = forwardRef<HTMLTextAreaElement, ComposerDockProps>(
     function renderPresets() {
       if (hasContent || trimmedLength > 0) return null;
       const activePreset = presets.find(
-        (preset) => preset.id === activePresetId,
+        (preset) => preset.id === activePresetId
       );
       const filteredPresets = activePreset
         ? presets.filter(
             (preset) =>
               preset.context.channel === activePreset.context.channel &&
-              preset.context.audience === activePreset.context.audience,
+              preset.context.audience === activePreset.context.audience
           )
         : presets;
       const shouldCapPresets = Boolean(activePreset) && !showAllPresets;
       const visiblePresets = shouldCapPresets
         ? filteredPresets.slice(0, 3)
         : showAllPresets
-          ? presets
-          : filteredPresets;
+        ? presets
+        : filteredPresets;
       const showViewAll = shouldCapPresets && filteredPresets.length > 3;
 
       return (
@@ -174,7 +188,7 @@ export const ComposerDock = forwardRef<HTMLTextAreaElement, ComposerDockProps>(
               "mt-2 overflow-y-auto transition-[max-height,opacity] duration-200",
               showPresetList
                 ? "max-h-96 opacity-100"
-                : "max-h-0 opacity-0 pointer-events-none",
+                : "max-h-0 opacity-0 pointer-events-none"
             )}
           >
             <div
@@ -205,7 +219,7 @@ export const ComposerDock = forwardRef<HTMLTextAreaElement, ComposerDockProps>(
                       "group text-left rounded-md border px-3 py-2.5 min-h-[44px] transition-colors",
                       "border-border/50 hover:border-border hover:bg-muted/40",
                       "flex flex-col gap-1.5 cursor-pointer",
-                      isActive ? "border-border bg-muted/40" : "bg-transparent",
+                      isActive ? "border-border bg-muted/40" : "bg-transparent"
                     )}
                   >
                     <div className="flex items-center justify-between gap-3 min-w-0">
@@ -217,7 +231,7 @@ export const ComposerDock = forwardRef<HTMLTextAreaElement, ComposerDockProps>(
                           className={cn(
                             "text-xs text-muted-foreground truncate",
                             "group-hover:whitespace-normal group-hover:overflow-visible",
-                            isActive && "whitespace-normal overflow-visible",
+                            isActive && "whitespace-normal overflow-visible"
                           )}
                         >
                           {preset.sentence}
@@ -232,7 +246,7 @@ export const ComposerDock = forwardRef<HTMLTextAreaElement, ComposerDockProps>(
                         "flex items-center gap-1.5 overflow-hidden transition-[max-height,opacity] duration-150 ease-out",
                         isActive
                           ? "max-h-6 opacity-100"
-                          : "max-h-0 opacity-0 group-hover:max-h-6 group-hover:opacity-100",
+                          : "max-h-0 opacity-0 group-hover:max-h-6 group-hover:opacity-100"
                       )}
                     >
                       {tags.map((tag) => (
@@ -323,7 +337,8 @@ export const ComposerDock = forwardRef<HTMLTextAreaElement, ComposerDockProps>(
                 )}
                 {showGenerateHint ? (
                   <span className="text-[11px] text-muted-foreground/70">
-                    {threshold - trimmedLength} more character{threshold - trimmedLength === 1 ? '' : 's'} needed
+                    {threshold - trimmedLength} more character
+                    {threshold - trimmedLength === 1 ? "" : "s"} needed
                   </span>
                 ) : null}
               </div>
@@ -343,7 +358,7 @@ export const ComposerDock = forwardRef<HTMLTextAreaElement, ComposerDockProps>(
           "bg-muted/30 border-t border-border/50",
           "backdrop-blur-sm",
           "animate-in slide-in-from-bottom-4 duration-300",
-          className,
+          className
         )}
       >
         <div className="px-4 pt-3 pb-8 max-w-2xl mx-auto">
@@ -361,32 +376,69 @@ export const ComposerDock = forwardRef<HTMLTextAreaElement, ComposerDockProps>(
             className="mb-2"
           />
 
-          {/* Label */}
-          <label
-            htmlFor="original-text"
-            className="block text-xs font-medium text-muted-foreground mb-1.5"
-          >
-            Original text
-          </label>
+          {/* Rich text editor style container */}
+          <div className="rounded-xl border bg-background shadow-sm overflow-hidden">
+            {/* Textarea */}
+            <Textarea
+              ref={textareaRef}
+              id="original-text"
+              value={value}
+              onChange={handleChange}
+              onFocus={handleFocus}
+              onBlur={handleBlur}
+              placeholder="Paste or type your message here…"
+              spellCheck={false}
+              autoComplete="off"
+              className="min-h-[72px] text-base resize-none border-0 p-3 placeholder:text-muted-foreground/50 focus-visible:ring-0 focus-visible:ring-offset-0"
+              autoFocus
+            />
 
-          {/* Textarea */}
-          <Textarea
-            ref={textareaRef}
-            id="original-text"
-            value={value}
-            onChange={handleChange}
-            onFocus={handleFocus}
-            onBlur={handleBlur}
-            placeholder="Paste or type your message here…"
-            spellCheck={false}
-            autoComplete="off"
-            className="min-h-[72px] text-base resize-none border bg-background shadow-sm rounded-xl p-3 placeholder:text-muted-foreground/50 focus-visible:ring-1 focus-visible:ring-ring"
-            autoFocus
-          />
+            {/* Toolbar - channel rules and generate button */}
+            {(showChannelRules || showDockedGenerateCTA) && (
+              <div className="flex items-center justify-between gap-2 px-3 py-2 border-t bg-muted/30">
+                {/* Channel Rules - icon toggles */}
+                {showChannelRules &&
+                channel &&
+                enabledRuleIds &&
+                onRuleToggle ? (
+                  <ChannelRulesToggle
+                    channel={channel}
+                    enabledRuleIds={enabledRuleIds}
+                    onToggle={onRuleToggle}
+                    compact
+                  />
+                ) : (
+                  <div />
+                )}
+
+                {/* Generate button */}
+                {showDockedGenerateCTA && (
+                  <div className="shrink-0">
+                    {hasApiKey && onGenerateWithAi ? (
+                      <SplitGenerateButton
+                        onGenerateWithAi={onGenerateWithAi}
+                        onGenerateMetaPrompt={onGenerate || (() => {})}
+                        disabled={isGenerateDisabled}
+                      />
+                    ) : (
+                      <Button
+                        type="button"
+                        onClick={onGenerate}
+                        disabled={isGenerateDisabled}
+                        size="sm"
+                      >
+                        Regenerate
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           {renderPresets()}
         </div>
       </div>
     );
-  },
+  }
 );

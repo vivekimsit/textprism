@@ -29,6 +29,8 @@ interface MetaPromptCardProps {
   isAiLoading?: boolean;
   /** Force collapse the card (e.g. when AI generation starts) */
   forceCollapsed?: boolean;
+  /** Hide channel rules (when AI mode is active) */
+  hideChannelRules?: boolean;
 }
 
 export function MetaPromptCard({
@@ -46,6 +48,7 @@ export function MetaPromptCard({
   onSendToAi,
   isAiLoading = false,
   forceCollapsed = false,
+  hideChannelRules = false,
 }: MetaPromptCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [hasEverGenerated, setHasEverGenerated] = useState(false);
@@ -236,8 +239,8 @@ export function MetaPromptCard({
         </div>
       </div>
 
-      {/* Channel Rules Toggle Section */}
-      {channel && enabledRuleIds && onRuleToggle ? (
+      {/* Channel Rules Toggle Section - hidden when AI mode is active */}
+      {!hideChannelRules && channel && enabledRuleIds && onRuleToggle ? (
         <div className="px-4 py-3 border-b bg-muted/10">
           <ChannelRulesToggle
             channel={channel}

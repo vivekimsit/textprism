@@ -5,6 +5,8 @@ import { Copy, Check, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { ChannelRulesToggle } from "./ChannelRulesToggle";
+import type { Platform } from "@/lib/generate-prompt";
 
 interface AiResponseCardProps {
   response: string;
@@ -12,6 +14,10 @@ interface AiResponseCardProps {
   error: string | null;
   onRegenerate?: () => void;
   className?: string;
+  /** Channel rules props for AI mode */
+  channel?: Platform;
+  enabledRuleIds?: string[];
+  onRuleToggle?: (ruleId: string, enabled: boolean) => void;
 }
 
 export function AiResponseCard({
@@ -20,6 +26,9 @@ export function AiResponseCard({
   error,
   onRegenerate,
   className,
+  channel,
+  enabledRuleIds,
+  onRuleToggle,
 }: AiResponseCardProps) {
   const [copied, setCopied] = useState(false);
 
@@ -101,6 +110,17 @@ export function AiResponseCard({
           )}
         </div>
       </div>
+
+      {/* Channel Rules Toggle Section */}
+      {channel && enabledRuleIds && onRuleToggle ? (
+        <div className="px-4 py-3 border-b bg-muted/10">
+          <ChannelRulesToggle
+            channel={channel}
+            enabledRuleIds={enabledRuleIds}
+            onToggle={onRuleToggle}
+          />
+        </div>
+      ) : null}
 
       {/* Body - scrollable area */}
       <div className="overflow-y-auto max-h-[400px]">

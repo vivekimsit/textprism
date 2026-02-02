@@ -56,6 +56,7 @@ import {
 import { MetaPromptCard } from "@/components/MetaPromptCard";
 import { ComposerDock } from "@/components/ComposerDock";
 import { AiResponseCard } from "@/components/AiResponseCard";
+import { ShowPromptToggle } from "@/components/ShowPromptToggle";
 import {
   type Intent,
   DEFAULT_INTENT,
@@ -280,6 +281,11 @@ function HomeContent() {
     
     return parts.join(" · ");
   }, [intent]);
+
+  // Determine if AI mode is active (AI response exists or is loading)
+  const isAiModeActive = Boolean(
+    aiGeneration.response || aiGeneration.isLoading || aiGeneration.error
+  );
 
   const promptContext = useMemo(
     () => ({
@@ -1058,38 +1064,53 @@ function HomeContent() {
               </div>
             ) : null}
 
-            {/* Meta Prompt Card - pushed down to connect with composer */}
-            <div ref={metaPromptRef}>
-              <MetaPromptCard
-                className="mt-auto pt-4"
-                metaPrompt={metaPrompt}
-                isGenerating={isGenerating}
-                hasEnoughText={hasEnoughText}
-                intentSummary={intentSummary}
-                channel={intent.channel as Platform}
-                enabledRuleIds={currentEnabledRules}
-                onRuleToggle={handleRuleToggle}
-                onCopy={handleCopyCallback}
-                onExpand={() => {
-                  setHasUserExpandedMetaPrompt(true);
-                  setForceCollapseMetaPrompt(false); // Reset force collapse when user expands
-                }}
-                hasApiKey={preferences.openaiApiKey.length > 0}
-                onSendToAi={handleSendToAi}
-                isAiLoading={aiGeneration.isLoading}
-                forceCollapsed={forceCollapseMetaPrompt}
-              />
-            </div>
-
-            {/* AI Response Card - appears below meta prompt when generated */}
-            {(aiGeneration.response || aiGeneration.isLoading || aiGeneration.error) && (
+            {/* AI Response Card - primary output when AI mode is active */}
+            {isAiModeActive && (
               <AiResponseCard
-                className="mt-4"
+                className="mt-auto pt-4"
                 response={aiGeneration.response}
                 isLoading={aiGeneration.isLoading}
                 error={aiGeneration.error}
                 onRegenerate={handleSendToAi}
+                channel={intent.channel as Platform}
+                enabledRuleIds={currentEnabledRules}
+                onRuleToggle={handleRuleToggle}
               />
+            )}
+
+            {/* Show Prompt Toggle - minimal view when AI mode is active */}
+            {isAiModeActive && metaPrompt && (
+              <ShowPromptToggle
+                key={`prompt-${metaPrompt.substring(0, 50)}`}
+                className="mt-4"
+                metaPrompt={metaPrompt}
+                intentSummary={intentSummary}
+              />
+            )}
+
+            {/* Meta Prompt Card - full view when AI mode is NOT active */}
+            {!isAiModeActive && (
+              <div ref={metaPromptRef}>
+                <MetaPromptCard
+                  className="mt-auto pt-4"
+                  metaPrompt={metaPrompt}
+                  isGenerating={isGenerating}
+                  hasEnoughText={hasEnoughText}
+                  intentSummary={intentSummary}
+                  channel={intent.channel as Platform}
+                  enabledRuleIds={currentEnabledRules}
+                  onRuleToggle={handleRuleToggle}
+                  onCopy={handleCopyCallback}
+                  onExpand={() => {
+                    setHasUserExpandedMetaPrompt(true);
+                    setForceCollapseMetaPrompt(false); // Reset force collapse when user expands
+                  }}
+                  hasApiKey={preferences.openaiApiKey.length > 0}
+                  onSendToAi={handleSendToAi}
+                  isAiLoading={aiGeneration.isLoading}
+                  forceCollapsed={forceCollapseMetaPrompt}
+                />
+              </div>
             )}
               </div>
             </div>

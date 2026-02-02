@@ -14,6 +14,9 @@ export interface UserPreferences {
   // Channel rules: maps channel name to array of enabled rule IDs
   // If undefined/empty for a channel, use defaults from CHANNEL_RULES
   channelRulesEnabled: Record<string, string[]>;
+  // AI generation settings
+  openaiApiKey: string;
+  selectedModel: string;
 }
 
 const DEFAULT_PREFERENCES: UserPreferences = {
@@ -24,6 +27,8 @@ const DEFAULT_PREFERENCES: UserPreferences = {
   companySize: "",
   yearsExperience: "",
   channelRulesEnabled: {},
+  openaiApiKey: "",
+  selectedModel: "gpt-4o-mini",
 };
 
 export function usePreferences() {
@@ -122,6 +127,24 @@ export function usePreferences() {
     [preferences.channelRulesEnabled],
   );
 
+  const setOpenaiApiKey = useCallback(
+    (value: string) => {
+      updatePreferences({ openaiApiKey: value });
+    },
+    [updatePreferences],
+  );
+
+  const setSelectedModel = useCallback(
+    (value: string) => {
+      updatePreferences({ selectedModel: value });
+    },
+    [updatePreferences],
+  );
+
+  const clearOpenaiApiKey = useCallback(() => {
+    updatePreferences({ openaiApiKey: "" });
+  }, [updatePreferences]);
+
   return {
     preferences,
     isLoaded,
@@ -133,6 +156,9 @@ export function usePreferences() {
     setYearsExperience,
     setChannelRules,
     getChannelRules,
+    setOpenaiApiKey,
+    setSelectedModel,
+    clearOpenaiApiKey,
     updatePreferences,
   };
 }

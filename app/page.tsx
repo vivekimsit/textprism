@@ -90,6 +90,9 @@ function HomeContent() {
     setCompanySize,
     setYearsExperience,
     setChannelRules,
+    setOpenaiApiKey,
+    setSelectedModel,
+    clearOpenaiApiKey,
   } = usePreferences();
   const {
     recents,
@@ -129,14 +132,13 @@ function HomeContent() {
   // Track cursor position for layout transition
   const [savedCursorPosition, setSavedCursorPosition] = useState<{ start: number; end: number } | null>(null);
   
-  // AI generation state (stored in memory only, not persisted)
-  const [apiKey, setApiKey] = useState("");
-  const [selectedModel, setSelectedModel] = useState("gpt-4o-mini");
+  // Control meta prompt expansion (collapse when sending to AI)
+  const [forceCollapseMetaPrompt, setForceCollapseMetaPrompt] = useState(false);
   
-  // AI generation hook
+  // AI generation hook - uses API key from preferences
   const aiGeneration = useAiGeneration({
-    apiKey,
-    model: selectedModel,
+    apiKey: preferences.openaiApiKey,
+    model: preferences.selectedModel,
   });
 
   useEffect(() => {
@@ -388,10 +390,13 @@ function HomeContent() {
   }
 
   function handleSendToAi() {
-    if (!metaPrompt || !apiKey) return;
+    if (!metaPrompt || !preferences.openaiApiKey) return;
     
     // Reset previous AI response
     aiGeneration.reset();
+    
+    // Collapse meta prompt card to focus on AI response
+    setForceCollapseMetaPrompt(true);
     
     // Build messages array for AI
     const messages: Message[] = [
@@ -406,7 +411,7 @@ function HomeContent() {
   }
 
   function handleApiKeyClear() {
-    setApiKey("");
+    clearOpenaiApiKey();
     aiGeneration.reset();
   }
 
@@ -986,6 +991,70 @@ function HomeContent() {
                     </div>
                   </div>
                 ) : null}
+
+                {/* AI Generation Settings */}
+                <div className="space-y-3 pt-4 border-t border-border/50">
+                  <p className="text-sm font-medium">AI Generation</p>
+                  <p className="text-xs text-muted-foreground">
+                    Add your OpenAI API key to generate messages directly
+                  </p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5 col-span-2">
+                      <label className="text-xs text-muted-foreground">
+                        OpenAI API Key
+                      </label>
+                      <div className="flex gap-2">
+                        <Input
+                          type="password"
+                          value={preferences.openaiApiKey}
+                          onChange={(e) => setOpenaiApiKey(e.target.value)}
+                          placeholder="sk-..."
+                          className="h-9 flex-1"
+                        />
+                        {preferences.openaiApiKey && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleApiKeyClear}
+                            className="h-9 px-3"
+                          >
+                            Clear
+                          </Button>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">
+                        Stored locally in your browser. Never sent to our servers.
+                      </p>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs text-muted-foreground">
+                        Model
+                      </label>
+                      <Select
+                        value={preferences.selectedModel}
+                        onValueChange={setSelectedModel}
+                      >
+                        <SelectTrigger className="h-9">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="gpt-4o-mini">GPT-4o Mini</SelectItem>
+                          <SelectItem value="gpt-4o">GPT-4o</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  {!preferences.openaiApiKey && (
+                    <a
+                      href="https://platform.openai.com/api-keys"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                    >
+                      Get your API key from OpenAI
+                    </a>
+                  )}
+                </div>
               </div>
             ) : null}
 
@@ -1001,14 +1070,14 @@ function HomeContent() {
                 enabledRuleIds={currentEnabledRules}
                 onRuleToggle={handleRuleToggle}
                 onCopy={handleCopyCallback}
-                onExpand={() => setHasUserExpandedMetaPrompt(true)}
-                apiKey={apiKey}
-                onApiKeyChange={setApiKey}
-                onApiKeyClear={handleApiKeyClear}
-                selectedModel={selectedModel}
-                onModelChange={setSelectedModel}
+                onExpand={() => {
+                  setHasUserExpandedMetaPrompt(true);
+                  setForceCollapseMetaPrompt(false); // Reset force collapse when user expands
+                }}
+                hasApiKey={preferences.openaiApiKey.length > 0}
                 onSendToAi={handleSendToAi}
                 isAiLoading={aiGeneration.isLoading}
+                forceCollapsed={forceCollapseMetaPrompt}
               />
             </div>
 
@@ -1074,7 +1143,7 @@ function HomeContent() {
               showGenerateCTA
             />
 
-            {/* Theme toggle in corner */}
+            {/* Theme toggle and settings in corner */}
             <div className="fixed top-4 right-4 flex items-center gap-3">
               <a
                 href={FEEDBACK_URL}
@@ -1113,6 +1182,119 @@ function HomeContent() {
                 <Settings className="h-4 w-4" />
               </Button>
             </div>
+
+            {/* Settings Panel - Fixed position for centered layout */}
+            {showSettings && (
+              <div className="fixed top-16 right-4 w-96 max-h-[80vh] overflow-y-auto p-4 border rounded-2xl bg-card shadow-lg space-y-4 animate-in fade-in slide-in-from-top-2 duration-200 z-50">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium">Settings</p>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={() => setShowSettings(false)}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+
+                {/* AI Generation Settings */}
+                <div className="space-y-3">
+                  <p className="text-xs font-medium text-muted-foreground">AI Generation</p>
+                  <div className="space-y-3">
+                    <div className="space-y-1.5">
+                      <label className="text-xs text-muted-foreground">
+                        OpenAI API Key
+                      </label>
+                      <div className="flex gap-2">
+                        <Input
+                          type="password"
+                          value={preferences.openaiApiKey}
+                          onChange={(e) => setOpenaiApiKey(e.target.value)}
+                          placeholder="sk-..."
+                          className="h-9 flex-1"
+                        />
+                        {preferences.openaiApiKey && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleApiKeyClear}
+                            className="h-9 px-3"
+                          >
+                            Clear
+                          </Button>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">
+                        Stored locally. Never sent to our servers.
+                      </p>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs text-muted-foreground">Model</label>
+                      <Select
+                        value={preferences.selectedModel}
+                        onValueChange={setSelectedModel}
+                      >
+                        <SelectTrigger className="h-9">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="gpt-4o-mini">GPT-4o Mini</SelectItem>
+                          <SelectItem value="gpt-4o">GPT-4o</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {!preferences.openaiApiKey && (
+                      <a
+                        href="https://platform.openai.com/api-keys"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                      >
+                        Get your API key from OpenAI
+                      </a>
+                    )}
+                  </div>
+                </div>
+
+                {/* Defaults */}
+                <div className="space-y-3 pt-3 border-t border-border/50">
+                  <p className="text-xs font-medium text-muted-foreground">Defaults</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <label className="text-xs text-muted-foreground">Who I am</label>
+                      <Select value={preferences.whoIAm} onValueChange={setWhoIAm}>
+                        <SelectTrigger className="h-9">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {WHO_I_AM_OPTIONS.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs text-muted-foreground">Default Tone</label>
+                      <Select value={preferences.defaultTone} onValueChange={setDefaultTone}>
+                        <SelectTrigger className="h-9">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {TONE_OPTIONS.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </main>

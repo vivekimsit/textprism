@@ -121,8 +121,8 @@ export const ComposerDock = forwardRef<HTMLTextAreaElement, ComposerDockProps>(
     }
 
     const showPresetList = trimmedLength === 0;
-    const isGenerateDisabled = trimmedLength === 0;
-    const showGenerateHint = isGenerateDisabled;
+    const isGenerateDisabled = trimmedLength < threshold;
+    const showGenerateHint = trimmedLength > 0 && trimmedLength < threshold;
 
     function renderPresets() {
       if (hasContent || trimmedLength > 0) return null;
@@ -308,7 +308,7 @@ export const ComposerDock = forwardRef<HTMLTextAreaElement, ComposerDockProps>(
                 </Button>
                 {showGenerateHint ? (
                   <span className="text-[11px] text-muted-foreground/70">
-                    Add a message to enable
+                    {threshold - trimmedLength} more character{threshold - trimmedLength === 1 ? '' : 's'} needed
                   </span>
                 ) : null}
               </div>

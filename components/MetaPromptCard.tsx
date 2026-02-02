@@ -1,11 +1,24 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Copy, Check, ChevronDown, ChevronUp } from "lucide-react";
+import { Copy, Check, ChevronDown, ChevronUp, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { ChannelRulesToggle } from "./ChannelRulesToggle";
+import { ApiKeyInput } from "./ApiKeyInput";
 import type { Platform } from "@/lib/generate-prompt";
 
 interface MetaPromptCardProps {
@@ -23,6 +36,14 @@ interface MetaPromptCardProps {
   onCopy?: () => void;
   onExpand?: () => void;
   className?: string;
+  /** AI generation props */
+  apiKey?: string;
+  onApiKeyChange?: (key: string) => void;
+  onApiKeyClear?: () => void;
+  selectedModel?: string;
+  onModelChange?: (model: string) => void;
+  onSendToAi?: () => void;
+  isAiLoading?: boolean;
 }
 
 export function MetaPromptCard({
@@ -36,13 +57,23 @@ export function MetaPromptCard({
   onCopy,
   onExpand,
   className,
+  apiKey = "",
+  onApiKeyChange,
+  onApiKeyClear,
+  selectedModel = "gpt-4o-mini",
+  onModelChange,
+  onSendToAi,
+  isAiLoading = false,
 }: MetaPromptCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [hasEverGenerated, setHasEverGenerated] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showApiKeyPopover, setShowApiKeyPopover] = useState(false);
 
   const hasContent = metaPrompt.length > 0;
   const isReady = hasEnoughText && hasContent && !isGenerating;
+  const hasApiKey = apiKey.length > 0;
+  const canSendToAi = isReady && hasApiKey && !isAiLoading;
 
   // Track if we've ever generated content (for auto-expand)
   useEffect(() => {
@@ -74,6 +105,17 @@ export function MetaPromptCard({
       }
       return next;
     });
+  }
+
+  function handleSendToAi() {
+    if (!hasApiKey) {
+      setShowApiKeyPopover(true);
+      return;
+    }
+    if (canSendToAi) {
+      onSendToAi?.();
+      setShowApiKeyPopover(false);
+    }
   }
 
   // === EMPTY STATE: Before any generation ===
@@ -150,6 +192,69 @@ export function MetaPromptCard({
           ) : null}
         </div>
         <div className="flex items-center gap-1.5">
+          {/* Send to AI button - with popover for API key */}
+          {onSendToAi && onApiKeyChange && onApiKeyClear && onModelChange && (
+            <Popover open={showApiKeyPopover} onOpenChange={setShowApiKeyPopover}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleSendToAi}
+                  disabled={!isReady || isAiLoading}
+                  className={cn(
+                    "h-7 px-3 text-xs font-medium",
+                    hasApiKey && "hover:bg-primary/10"
+                  )}
+                  title={!hasApiKey ? "Configure API key to send to AI" : "Send to AI"}
+                >
+                  <Sparkles className="h-3.5 w-3.5 mr-1.5" />
+                  {isAiLoading ? "Generating..." : "Send to AI"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-96" align="end">
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="font-medium text-sm mb-1">Send to AI</h4>
+                    <p className="text-xs text-muted-foreground">
+                      Generate the final message using OpenAI
+                    </p>
+                  </div>
+                  
+                  {/* Model selector */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs text-muted-foreground">Model</label>
+                    <Select value={selectedModel} onValueChange={onModelChange}>
+                      <SelectTrigger className="h-9">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="gpt-4o-mini">GPT-4o Mini (Faster, cheaper)</SelectItem>
+                        <SelectItem value="gpt-4o">GPT-4o (More capable)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* API Key input */}
+                  <ApiKeyInput
+                    value={apiKey}
+                    onChange={onApiKeyChange}
+                    onClear={onApiKeyClear}
+                  />
+
+                  {/* Generate button */}
+                  <Button
+                    onClick={handleSendToAi}
+                    disabled={!canSendToAi}
+                    className="w-full"
+                  >
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    Generate with AI
+                  </Button>
+                </div>
+              </PopoverContent>
+            </Popover>
+          )}
+
           {/* Copy button - primary action */}
           <Button
             variant={isReady ? "default" : "ghost"}

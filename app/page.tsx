@@ -55,6 +55,7 @@ import {
 } from "@/lib/channel-rules";
 import { MetaPromptCard } from "@/components/MetaPromptCard";
 import { ComposerDock } from "@/components/ComposerDock";
+import { AiResponseCard } from "@/components/AiResponseCard";
 import {
   type Intent,
   DEFAULT_INTENT,
@@ -66,6 +67,7 @@ import {
   TONE_OPTIONS,
 } from "@/lib/intent";
 import { PRESETS, type Preset } from "@/lib/presets";
+import { useAiGeneration, type Message } from "@/hooks/use-ai-generation";
 
 const FEEDBACK_URL = "https://github.com/vivekimsit/textprism/discussions";
 const PRESET_HIGHLIGHT_KEYS = {
@@ -126,6 +128,16 @@ function HomeContent() {
   
   // Track cursor position for layout transition
   const [savedCursorPosition, setSavedCursorPosition] = useState<{ start: number; end: number } | null>(null);
+  
+  // AI generation state (stored in memory only, not persisted)
+  const [apiKey, setApiKey] = useState("");
+  const [selectedModel, setSelectedModel] = useState("gpt-4o-mini");
+  
+  // AI generation hook
+  const aiGeneration = useAiGeneration({
+    apiKey,
+    model: selectedModel,
+  });
 
   useEffect(() => {
     setIsMounted(true);
@@ -373,6 +385,29 @@ function HomeContent() {
     setGenerationSeed(trimmedInput);
     setHasRequestedGeneration(true);
     shouldScrollToMetaPromptRef.current = true;
+  }
+
+  function handleSendToAi() {
+    if (!metaPrompt || !apiKey) return;
+    
+    // Reset previous AI response
+    aiGeneration.reset();
+    
+    // Build messages array for AI
+    const messages: Message[] = [
+      {
+        role: "user",
+        content: metaPrompt,
+      },
+    ];
+    
+    // Generate AI response
+    aiGeneration.generate(messages);
+  }
+
+  function handleApiKeyClear() {
+    setApiKey("");
+    aiGeneration.reset();
   }
 
   function buildPresetTags(preset: Preset) {
@@ -967,8 +1002,26 @@ function HomeContent() {
                 onRuleToggle={handleRuleToggle}
                 onCopy={handleCopyCallback}
                 onExpand={() => setHasUserExpandedMetaPrompt(true)}
+                apiKey={apiKey}
+                onApiKeyChange={setApiKey}
+                onApiKeyClear={handleApiKeyClear}
+                selectedModel={selectedModel}
+                onModelChange={setSelectedModel}
+                onSendToAi={handleSendToAi}
+                isAiLoading={aiGeneration.isLoading}
               />
             </div>
+
+            {/* AI Response Card - appears below meta prompt when generated */}
+            {(aiGeneration.response || aiGeneration.isLoading || aiGeneration.error) && (
+              <AiResponseCard
+                className="mt-4"
+                response={aiGeneration.response}
+                isLoading={aiGeneration.isLoading}
+                error={aiGeneration.error}
+                onRegenerate={handleSendToAi}
+              />
+            )}
               </div>
             </div>
 

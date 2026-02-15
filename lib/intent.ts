@@ -21,11 +21,14 @@ export type Persona =
   | "founder"
   | "freelancer";
 
+/** Persona can be a preset or a custom string (e.g. "Data Scientist") */
+export type PersonaOrCustom = Persona | (string & {});
+
 export interface Intent {
   channel: Channel;
   audience: Audience | null;
   tone: Tone;
-  persona: Persona;
+  persona: PersonaOrCustom;
 }
 
 export const DEFAULT_INTENT: Intent = {
@@ -123,7 +126,7 @@ export function getToneLabel(tone: Tone): string {
   return TONE_OPTIONS.find((o) => o.value === tone)?.label ?? tone;
 }
 
-export function getPersonaLabel(persona: Persona): string {
+export function getPersonaLabel(persona: PersonaOrCustom): string {
   return PERSONA_OPTIONS.find((o) => o.value === persona)?.label ?? persona;
 }
 

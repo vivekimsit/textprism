@@ -14,6 +14,8 @@ interface OptionListProps {
   onSelect: (value: string) => void;
   onClose: () => void;
   showSearch?: boolean;
+  /** When true, allows user to add custom input (e.g. "Data Scientist") when none of the presets fit */
+  allowCustomInput?: boolean;
   className?: string;
 }
 
@@ -23,6 +25,7 @@ export function OptionList({
   onSelect,
   onClose,
   showSearch = true,
+  allowCustomInput = false,
   className,
 }: OptionListProps) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -35,17 +38,53 @@ export function OptionList({
     option.label.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
-  // Reset highlight when filtered options change
+  // When allowCustomInput: if current value isn't in options (custom), include it so it displays
+  const hasCustomValue =
+    allowCustomInput &&
+    value &&
+    value.trim() !== "" &&
+    !options.some((o) => o.value === value);
+  const customValueOption: OptionItem | null = hasCustomValue
+    ? { value, label: value }
+    : null;
+
+  // Custom option: "Use '[searchQuery]' as custom" when user has typed something
+  const trimmedQuery = searchQuery.trim();
+  const isQueryInPresets = options.some(
+    (o) =>
+      o.value === trimmedQuery ||
+      o.label.toLowerCase() === trimmedQuery.toLowerCase(),
+  );
+  const showCustomOption =
+    allowCustomInput &&
+    trimmedQuery !== "" &&
+    !isQueryInPresets &&
+    trimmedQuery !== value; // Skip if same as current (would be duplicate)
+  const customOptionLabel = `Use "${trimmedQuery}" as custom`;
+
+  // Combine: filtered presets + current custom (if not in filtered) + "use as custom" option
+  const displayOptions = [...filteredOptions];
+  if (customValueOption && !filteredOptions.some((o) => o.value === value)) {
+    displayOptions.unshift(customValueOption);
+  }
+  if (showCustomOption) {
+    displayOptions.push({
+      value: trimmedQuery,
+      label: customOptionLabel,
+    });
+  }
+
+  // Reset highlight when display options change
   useEffect(() => {
     setHighlightedIndex(0);
   }, [searchQuery]);
 
   // Focus search input on mount
   useEffect(() => {
-    if (showSearch) {
+    if (showSearch || allowCustomInput) {
       searchInputRef.current?.focus();
     }
-  }, [showSearch]);
+  }, [showSearch, allowCustomInput]);
 
   // Scroll highlighted item into view
   useEffect(() => {
@@ -66,7 +105,7 @@ export function OptionList({
         case "ArrowDown":
           e.preventDefault();
           setHighlightedIndex((prev) =>
-            prev < filteredOptions.length - 1 ? prev + 1 : prev,
+            prev < displayOptions.length - 1 ? prev + 1 : prev,
           );
           break;
         case "ArrowUp":
@@ -75,8 +114,8 @@ export function OptionList({
           break;
         case "Enter":
           e.preventDefault();
-          if (filteredOptions[highlightedIndex]) {
-            onSelect(filteredOptions[highlightedIndex].value);
+          if (displayOptions[highlightedIndex]) {
+            onSelect(displayOptions[highlightedIndex].value);
           }
           break;
         case "Escape":
@@ -89,7 +128,7 @@ export function OptionList({
           break;
       }
     },
-    [filteredOptions, highlightedIndex, onSelect, onClose],
+    [displayOptions, highlightedIndex, onSelect, onClose],
   );
 
   return (
@@ -97,25 +136,25 @@ export function OptionList({
       className={cn("flex flex-col max-h-[240px]", className)}
       onKeyDown={handleKeyDown}
     >
-      {showSearch && options.length > 5 ? (
+      {(showSearch && options.length > 5) || allowCustomInput ? (
         <div className="p-2 border-b border-border/50">
           <input
             ref={searchInputRef}
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search..."
+            placeholder={allowCustomInput ? "Search or type custom..." : "Search..."}
             className="w-full px-2 py-1.5 text-sm bg-transparent border border-border/50 rounded-md focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50"
           />
         </div>
       ) : null}
       <div ref={listRef} className="overflow-y-auto py-1">
-        {filteredOptions.length === 0 ? (
+        {displayOptions.length === 0 ? (
           <div className="px-3 py-2 text-sm text-muted-foreground">
             No results found
           </div>
         ) : (
-          filteredOptions.map((option, index) => (
+          displayOptions.map((option, index) => (
             <button
               key={option.value}
               data-index={index}

@@ -11,7 +11,6 @@ import {
   type Channel,
   type Audience,
   type Tone,
-  type Persona,
   CHANNEL_OPTIONS,
   TONE_OPTIONS,
   PERSONA_OPTIONS,
@@ -63,6 +62,8 @@ interface TokenProps {
   isWarning?: boolean;
   ariaLabel: string;
   highlight?: boolean;
+  /** Allow user to add custom input when none of the preset options fit */
+  allowCustomInput?: boolean;
 }
 
 function Token({
@@ -74,6 +75,7 @@ function Token({
   isWarning = false,
   ariaLabel,
   highlight = false,
+  allowCustomInput = false,
 }: TokenProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -168,6 +170,7 @@ function Token({
           onSelect={handleSelect}
           onClose={handleClose}
           showSearch={options.length > 5}
+          allowCustomInput={allowCustomInput}
         />
       </IntentPopover>
     </>
@@ -265,7 +268,7 @@ export function IntentSentence({
 
   const handlePersonaChange = useCallback(
     (value: string) => {
-      onIntentChange({ ...intent, persona: value as Persona });
+      onIntentChange({ ...intent, persona: value });
     },
     [intent, onIntentChange]
   );
@@ -373,6 +376,7 @@ export function IntentSentence({
             isSentenceActive={isSentenceActive}
             ariaLabel="Change role"
             highlight={Boolean(highlightTokens?.persona)}
+            allowCustomInput
           />
           .
         </p>

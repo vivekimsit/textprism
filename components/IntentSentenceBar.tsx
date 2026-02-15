@@ -8,7 +8,6 @@ import {
   type Channel,
   type Audience,
   type Tone,
-  type Persona,
   CHANNEL_OPTIONS,
   TONE_OPTIONS,
   PERSONA_OPTIONS,
@@ -128,7 +127,7 @@ export function IntentSentenceBar({
     (value: string) => {
       onIntentChange({
         ...intent,
-        persona: value as Persona,
+        persona: value,
       });
     },
     [intent, onIntentChange]
@@ -233,6 +232,7 @@ export function IntentSentenceBar({
           value={intent.persona}
           options={PERSONA_OPTIONS}
           onChange={handlePersonaChange}
+          allowCustomInput
           compact={compact}
         />
       </p>

@@ -13,6 +13,8 @@ interface IntentTokenProps {
   isWarning?: boolean;
   /** Compact mode for smaller text contexts */
   compact?: boolean;
+  /** Allow user to add custom input when none of the preset options fit */
+  allowCustomInput?: boolean;
   className?: string;
 }
 
@@ -23,6 +25,7 @@ export function IntentToken({
   onChange,
   isWarning = false,
   compact = false,
+  allowCustomInput = false,
   className,
 }: IntentTokenProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -91,6 +94,7 @@ export function IntentToken({
           onSelect={handleSelect}
           onClose={handleClose}
           showSearch={options.length > 5}
+          allowCustomInput={allowCustomInput}
         />
       </IntentPopover>
     </>

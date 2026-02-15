@@ -106,40 +106,78 @@ export async function POST(req: Request) {
         }
 
         try {
+          let sseBuffer = "";
+
           while (true) {
             const { done, value } = await reader.read();
             if (done) break;
 
-            const chunk = decoder.decode(value, { stream: true });
-            const lines = chunk.split("\n");
+            sseBuffer += decoder.decode(value, { stream: true });
+            const lines = sseBuffer.split("\n");
+            sseBuffer = lines.pop() ?? "";
 
-            for (const line of lines) {
-              if (line.startsWith("data: ")) {
-                const data = line.slice(6);
-                if (data === "[DONE]") continue;
+            for (const rawLine of lines) {
+              const line = rawLine.trimEnd();
+              if (!line.startsWith("data: ")) continue;
 
-                try {
-                  const parsed = JSON.parse(data);
-                  
-                  // Check for error in streamed response
-                  if (parsed.error) {
-                    const errorMessage = parseOpenAIError(parsed.error);
-                    controller.enqueue(encoder.encode("__ERROR__:" + JSON.stringify({ error: errorMessage })));
-                    controller.close();
-                    return;
-                  }
-                  
-                  // Extract content delta
-                  const content = parsed.choices?.[0]?.delta?.content;
-                  if (content) {
-                    controller.enqueue(encoder.encode(content));
-                  }
-                } catch {
-                  // Skip invalid JSON lines
+              const data = line.slice(6);
+              if (!data || data === "[DONE]") continue;
+
+              try {
+                const parsed = JSON.parse(data);
+
+                // Check for error in streamed response
+                if (parsed.error) {
+                  const errorMessage = parseOpenAIError(parsed.error);
+                  controller.enqueue(
+                    encoder.encode(
+                      "__ERROR__:" + JSON.stringify({ error: errorMessage })
+                    )
+                  );
+                  controller.close();
+                  return;
                 }
+
+                // Extract content delta
+                const content = parsed.choices?.[0]?.delta?.content;
+                if (content) {
+                  controller.enqueue(encoder.encode(content));
+                }
+              } catch {
+                // If an event line is still incomplete, keep it for the next chunk.
+                sseBuffer = `${rawLine}\n${sseBuffer}`;
               }
             }
           }
+
+          // Flush any final buffered SSE line after stream completion.
+          const finalLine = sseBuffer.trim();
+          if (finalLine.startsWith("data: ")) {
+            const data = finalLine.slice(6);
+            if (data && data !== "[DONE]") {
+              try {
+                const parsed = JSON.parse(data);
+                if (parsed.error) {
+                  const errorMessage = parseOpenAIError(parsed.error);
+                  controller.enqueue(
+                    encoder.encode(
+                      "__ERROR__:" + JSON.stringify({ error: errorMessage })
+                    )
+                  );
+                  controller.close();
+                  return;
+                }
+
+                const content = parsed.choices?.[0]?.delta?.content;
+                if (content) {
+                  controller.enqueue(encoder.encode(content));
+                }
+              } catch {
+                // Ignore trailing incomplete payload.
+              }
+            }
+          }
+
           controller.close();
         } catch (error) {
           const message = error instanceof Error ? error.message : "Stream error";

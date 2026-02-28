@@ -16,16 +16,6 @@ export const MIN_CHARS = 10;
 export const THRESHOLD = 20; // Minimum chars for auto-generation
 export const MAX_CHARS = 2000;
 
-// Fallback channel-specific formatting hints (used when no custom rules provided)
-export const DEFAULT_CHANNEL_HINTS: Record<Platform, string> = {
-  slack: "Use markdown, bullets for lists, keep it scannable",
-  email: "Include a clear subject line, professional structure",
-  linkedin:
-    "Hook in first line, whitespace between paragraphs, end with question",
-  reddit: "Casual tone, lowercase OK, no emojis, sound like a real person",
-  quora: "Structured answer, share experience, be comprehensive",
-};
-
 export function generatePrompt(params: GeneratePromptParams): string {
   const {
     message,
@@ -41,8 +31,9 @@ export function generatePrompt(params: GeneratePromptParams): string {
     ? `\nEXTRA RULES:\n${extraRules.map((rule) => `- ${rule}`).join("\n")}\n`
     : "";
 
-  // Use custom channel rules if provided, otherwise fall back to defaults
-  const rulesText = channelRulesText || DEFAULT_CHANNEL_HINTS[channel];
+  // Use custom channel rules if provided (buildChannelRulesText always returns text)
+  const rulesText =
+    channelRulesText || "Follow standard formatting for this channel";
 
   const prompt = `You are writing a ${channel.toUpperCase()} message.
 

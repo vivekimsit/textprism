@@ -530,6 +530,14 @@ function HomeContent() {
       persona: preset.context.role,
     });
     setExtraRules(preset.extraRules ?? []);
+    if (preset.channelRuleIds) {
+      const channel = preset.context.channel;
+      setChannelRulesState((prev) => ({
+        ...prev,
+        [channel]: preset.channelRuleIds!,
+      }));
+      setChannelRules(channel, preset.channelRuleIds);
+    }
     setActivePresetId(preset.id);
     setHighlightTokens({ ...PRESET_HIGHLIGHT_KEYS });
     if (wasEmpty) {
@@ -797,7 +805,8 @@ function HomeContent() {
                       : "Recent prompts appear here after you use them."}
                   </p>
                 )}
-                {drafts.length > 0 ? (
+                {/* Show Drafts section hidden for now */}
+                {false && drafts.length > 0 ? (
                   <div className="mt-3 px-1">
                     <button
                       type="button"

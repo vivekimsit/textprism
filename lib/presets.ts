@@ -13,6 +13,8 @@ export interface Preset {
   sentence: string;
   context: PresetContext;
   extraRules?: string[];
+  /** Channel rule toggles to enable when preset is applied */
+  channelRuleIds?: string[];
 }
 
 export const PRESETS: Preset[] = [
@@ -32,6 +34,7 @@ export const PRESETS: Preset[] = [
       "Include a crisp timeline if dates are mentioned",
       "End with the decision or ask",
     ],
+    channelRuleIds: ["subject", "structure"],
   },
   {
     id: "slack-team-direct-tech-lead",
@@ -43,7 +46,8 @@ export const PRESETS: Preset[] = [
       tone: "direct",
       role: "tech_lead",
     },
-    extraRules: ["Use bullets", "End with a clear owner and next step"],
+    extraRules: ["End with a clear owner and next step"],
+    channelRuleIds: ["markdown", "bullets", "scannable"],
   },
   {
     id: "linkedin-public-persuasive-founder",
@@ -56,7 +60,8 @@ export const PRESETS: Preset[] = [
       tone: "persuasive",
       role: "founder",
     },
-    extraRules: ["Start with a strong hook", "Include a short CTA question"],
+    extraRules: [],
+    channelRuleIds: ["hook", "whitespace", "cta"],
   },
   {
     id: "reddit-community-casual-junior",
@@ -70,6 +75,7 @@ export const PRESETS: Preset[] = [
       role: "junior_engineer",
     },
     extraRules: ["Be specific about constraints", "Avoid marketing language"],
+    channelRuleIds: ["casual", "lowercase", "noemoji", "human"],
   },
   {
     id: "email-client-warm-freelancer",
@@ -82,6 +88,7 @@ export const PRESETS: Preset[] = [
       role: "freelancer",
     },
     extraRules: ["Keep it under 150 words", "Include a clear CTA"],
+    channelRuleIds: ["subject", "structure"],
   },
   {
     id: "slack-manager-formal-eng-mgr",
@@ -95,6 +102,7 @@ export const PRESETS: Preset[] = [
       role: "engineering_manager",
     },
     extraRules: ["Include impact and mitigation", "Ask for alignment"],
+    channelRuleIds: ["markdown", "bullets", "scannable"],
   },
   {
     id: "linkedin-network-warm-designer",
@@ -108,6 +116,7 @@ export const PRESETS: Preset[] = [
       role: "designer",
     },
     extraRules: ["Use 2 short paragraphs", "Invite feedback"],
+    channelRuleIds: ["hook", "whitespace", "cta"],
   },
   {
     id: "reddit-community-direct-senior",
@@ -121,5 +130,6 @@ export const PRESETS: Preset[] = [
       role: "senior_engineer",
     },
     extraRules: ["Use numbered points", "State assumptions upfront"],
+    channelRuleIds: ["casual", "lowercase", "noemoji", "human"],
   },
 ];

@@ -297,16 +297,9 @@ export function IntentSentence({
   // Status logic
   const isAboveThreshold = inputLength >= threshold;
 
-  // Helper text logic
+  // Helper text logic - only show when user has started typing
   function renderHelper() {
-    if (isAboveThreshold) return null;
-    if (inputLength === 0) {
-      return (
-        <p className="text-xs text-muted-foreground/50 mt-1.5">
-          Paste your original text below to generate the meta prompt.
-        </p>
-      );
-    }
+    if (inputLength === 0 || isAboveThreshold) return null;
     return (
       <p className="text-xs text-muted-foreground/50 mt-1.5">
         Generates after {threshold} chars.
